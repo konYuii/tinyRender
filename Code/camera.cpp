@@ -1,10 +1,13 @@
 #include"camera.h"
 
 namespace render {
-	Camera::Camera(float fov, float ratio)
+	Camera::Camera(float fov, float ratio, float znear, float zfar)
 	{
 		this->fov = fov;
 		this->aspect_ratio = ratio;
+		this->znear = znear;
+		this->zfar = zfar;
+
 		this->viewInver = Eigen::Matrix4f::Identity();
 		this->pos = Eigen::Vector3f();
 		this->right = Eigen::Vector3f();

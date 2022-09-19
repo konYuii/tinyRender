@@ -28,9 +28,10 @@ namespace render
 		Eigen::Vector3f csPos;
 		Eigen::Vector3f normal;
 		Eigen::Vector2f texcoord;
-
 		Eigen::Vector3f color;
-		int bufferPos;
+
+		Eigen::Vector3f cameraPos;
+
 	};
 
 	struct Indice {
@@ -41,11 +42,6 @@ namespace render
 	enum class AA
 	{
 		None, SSAA, MSAA
-	};
-
-	enum class Shader
-	{
-		Color
 	};
 
 	inline void VectorPrint(Eigen::Vector2f v)

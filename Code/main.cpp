@@ -8,7 +8,12 @@ float fov = 90.0f;
 float cameraMoveSpeed = .15f;
 float cameraRotateSpeed = render::PI / 60.0f;
 float znear = 0.5f, zfar = 50.0f;
+Eigen::Vector3f cameraPos = Eigen::Vector3f(0.0f, 0.0f, 2.0f);
+Eigen::Vector3f cameraUp = Eigen::Vector3f(0.0f, 1.0f, 0.0f);
+Eigen::Vector3f cameraRight = Eigen::Vector3f(1.0f, 0.0f, 0.0f);
 
+Eigen::Vector3f light1Pos = Eigen::Vector3f(-20.0, 20.0f, 0.0f);
+Eigen::Vector3f light1Intensity = Eigen::Vector3f(1.0f, 1.0f, 1.0f) * 2.0f;
 
 Eigen::Vector3f ver[] = { {-1.0f,-1.0,0.0f},{-1.0f,1.0f,0.0f},{1.0f,1.0f,0.0f},{1.0f,-1.0f,0.0f},
 						{-1.0f,-1.0,-1.0f},{-1.0f,1.0f,-1.0f},{1.0f,1.0f,-1.0f},{1.0f,-1.0f,-1.0f} };
@@ -26,39 +31,19 @@ int Ind[] = { 0,1,2,
 			  4,6,7};
 
 
-void CameraHandle(int control, render::Camera* camera)
-{
 
-	if (control == 119) //w
-		camera->Move(Eigen::Vector3f(0.0f, 0.0f, -1.0f));
-	else if (control == 115) //s
-		camera->Move(Eigen::Vector3f(0.0f, 0.0f, 1.0f));
-	else if (control == 97) //a
-		camera->Move(Eigen::Vector3f(-1.0f, 0.0f, 0.0f));
-	else if (control == 100) //d
-		camera->Move(Eigen::Vector3f(1.0f, 0.0f, 0.0f));
-	else if (control == 2424832) //<-
-		camera->Rotate(0, 1);
-	else if (control == 2555904) //->
-		camera->Rotate(0, 0);
-	else if (control == 2490368)
-		camera->Rotate(1, 0);
-	else if (control == 2621440)
-		camera->Rotate(1, 1);
+int main(){
 
-}
-
-int main()
-{
-	render::Shader shader = render::Shader::Color;
-	render::application app(width, height, shader);
 	
-	render::Camera* camera = new render::Camera(fov, width * 1.0 / height);
-	camera->pos = Eigen::Vector3f(0.0f, 0.0f, 4.0f);
-	camera->up = Eigen::Vector3f(0.0f, 1.0f, 0.0f);
-	camera->right = Eigen::Vector3f(1.0f, 0.0f, 0.0f);
+	render::Camera* camera = new render::Camera(fov, width * 1.0 / height, znear, zfar);
+	camera->pos = cameraPos;
+	camera->up = cameraUp;
+	camera->right = cameraRight;
 	camera->moveSpeed = cameraMoveSpeed;
 	camera->rotateSpeed = cameraRotateSpeed;
+
+	render::Shader shader = render::Shader::Color;
+	render::application app(width, height, camera);
 
 	std::vector<render::Texture*> t;
 	int len = (sizeof(Ind) / sizeof(int)) / 3;
@@ -87,8 +72,7 @@ int main()
 	std::string path = "../models/spot/spot.obj";
 	render::Model model(path);
 
-
-
+	app.AddPointLight(light1Pos, light1Intensity, 1.0f);
 	while (true)
 	{
 		
@@ -97,22 +81,18 @@ int main()
 			break;
 		else
 		{
-			//std::cout << control << "\n";
-			CameraHandle(control, camera);
+			app.CameraControl(control);
 		}
 
 		//render::VectorPrint(camera->pos);
 		//if(control>0)
 		//	std::cout << control << '\n';
-		app.Clear();
-
-		app.SetViewMatrix(camera->SetView());
-		app.SetProjectionMatrix(znear, zfar, camera->aspect_ratio, camera->fov);
+		app.ClearBuffer();
 
 
 		//std::cout << control << '\n';
 		//app.Rendering(&mesh);
-		app.Rendering(&model);
+		app.Rendering(&model,render::Shader::BlinPhong);
 
 
 		cv::Mat image(width, height, CV_32FC3, app.GetFramebuffer().data());

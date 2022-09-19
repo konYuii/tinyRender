@@ -11,11 +11,13 @@ namespace render {
 
 		float fov;
 		float aspect_ratio;		
+		float znear;
+		float zfar;
 
 		float moveSpeed;
 		float rotateSpeed;
 
-		Camera(float fov, float ratio);
+		Camera(float fov, float ratio, float znear, float zfar);
 		void Move(Eigen::Vector3f move);
 		void Rotate(int axis, int counterSide);
 		Eigen::Matrix4f SetView();
