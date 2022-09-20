@@ -3,7 +3,11 @@
 namespace render {
 	pixelShader::pixelShader()
 	{
-
+		this->textures = nullptr;
+	}
+	void pixelShader::SetTextures(Texture_loaded* ts)
+	{
+		this->textures = ts;
 	}
 	Eigen::Vector3f pixelShader::Shading(ShadingData data, Shader shader)
 	{
@@ -26,6 +30,11 @@ namespace render {
 
 		return res;
 	}
+	Eigen::Vector3f pixelShader::SampleTexture(int index, Eigen::Vector2f texcoord)
+	{
+		
+		return textures->data[index].GetPixel(texcoord);
+	}
 	Eigen::Vector3f render::pixelShader::ColorShading(ShadingData data)
 	{
 		return data.color;
@@ -37,6 +46,7 @@ namespace render {
 		Eigen::Vector3f ambient = Eigen::Vector3f(0.15f, 0.15f, 0.15f) * 255.0f;
 		Eigen::Vector3f diffuse = Eigen::Vector3f::Zero();
 		Eigen::Vector3f specular = Eigen::Vector3f::Zero();
+
 
 		for (auto& light : this->lights)
 		{
@@ -50,7 +60,7 @@ namespace render {
 
 			if (light.type == LightType::PointLight)
 			{
-				vi = (light.position - data.worldPos).normalized();
+				vi = light.position - data.worldPos;
 			}
 			else
 			{
@@ -58,13 +68,23 @@ namespace render {
 			}
 
 			vo = data.cameraPos - data.worldPos;
-			distance2 = vo.squaredNorm();
+			distance2 = vi.squaredNorm();
+			vi.normalize();
 			vo.normalize();
 			h = (vi + vo).normalized();
+	
+			if (data.textureIndex == -1)
+			{
+				kd = testColor;
+				ks = kd;
+			}
+			else
+			{
+				kd = SampleTexture(data.textureIndex, data.texcoord);
+				ks = kd;
+				//VectorPrint(kd);
+			}
 
-
-			kd = Eigen::Vector3f(123.0f, 191.0f, 234.0f);
-			ks = kd;
 
 			
 			diffuse += kd.cwiseProduct(light.intensity) / distance2 * std::max(0.0f, data.normal.dot(vi));

@@ -41,6 +41,8 @@ namespace render {
 	}
 	void application::Rendering(Mesh* mesh, Shader shader)
 	{
+		this->rs->ps->SetTextures(mesh->textures_load);
+		//std::cout << mesh->textures_load->data.size();
 		for (auto& indice : mesh->indices)
 		{
 			std::vector<VertexOut> vout;

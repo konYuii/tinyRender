@@ -1,25 +1,6 @@
 #include "model.h"
 
 namespace render {
-	bool TextureFromFile(const char* path, const std::string& directory, Texture& texture)
-	{
-		std::string filename = std::string(path);
-		filename = directory + '/' + filename;
-
-
-		texture.data = cv::imread(filename);
-
-		if (texture.data.empty())
-		{
-			std::cout << "Texture failed to load at path: " << path << std::endl;
-			return false;
-		}
-		else
-		{
-
-			return true;
-		}
-	}
 
 
 	void Model::loadModel(std::string path)
@@ -56,7 +37,7 @@ namespace render {
 	{
 		std::vector<Vertex> vertices;
 		std::vector<Indice> indices;
-		std::vector<Texture*> textures;
+		std::vector<int> textures;
 
 		vertices.reserve(mesh->mNumVertices);
 		for (unsigned int i = 0; i < mesh->mNumVertices; i++)
@@ -102,36 +83,38 @@ namespace render {
 
 
 		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-		std::vector<Texture*> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+		std::vector<int> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, TextureType::DIFFUSE);
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
 		// 2. specular maps
-		std::vector<Texture*> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
+		std::vector<int> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, TextureType::SPECULAR);
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 		// 3. normal maps
-		std::vector<Texture*> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
+		std::vector<int> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, TextureType::NORMAL);
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 		// 4. height maps
-		std::vector<Texture*> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
+		std::vector<int> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, TextureType::HEIGHT);
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
 		// return a mesh object created from the extracted mesh data
-		return Mesh(vertices, indices, textures);
+
+
+		return Mesh(vertices, indices, textures, &textures_model);
 	}
 
-	std::vector<Texture*> Model::loadMaterialTextures(aiMaterial * mat, aiTextureType type, std::string typeName)
+	std::vector<int> Model::loadMaterialTextures(aiMaterial * mat, aiTextureType type, TextureType myType)
 	{
-		std::vector<Texture *> textures;
+		std::vector<int> textures;
 		for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
 		{
 			aiString str;
 			mat->GetTexture(type, i, &str);
 			// check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
 			bool skip = false;
-			for (unsigned int j = 0; j < textures_loaded.size(); j++)
+			for (auto texture :textures_model.data)
 			{
-				if (std::strcmp(textures_loaded[j].path.data(), str.C_Str()) == 0)
+				if (std::strcmp( texture.path.data(), str.C_Str()) == 0)
 				{
-					textures.push_back(&(textures_loaded[j]	));
+					textures.push_back(i);
 					skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
 					break;
 				}
@@ -139,25 +122,36 @@ namespace render {
 			if (!skip)
 			{   // if texture hasn't been loaded already, load it
 				Texture texture;
-				if (TextureFromFile(str.C_Str(), this->directory, texture))
+				bool sucess = texture.LoadTexture(str.C_Str(), this->directory);
+				if (sucess)
 				{
-					texture.type = typeName;
+					texture.type = myType;
 					texture.path = str.C_Str();
-					textures.push_back(&texture);
-					textures_loaded.push_back(texture);
+					textures_model.data.push_back(texture);
+					textures.push_back(textures_model.data.size() - 1);
+
 				}
-				
 			}
 		}
 		return textures;
 	}
 
-	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Indice> indices, std::vector<Texture*> textures)
+	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Indice> indices, std::vector<int> textures, Texture_loaded* texturesLoad)
 	{
 		this->vertices = vertices;
 		this->indices = indices;
-		this->textures = textures;
+		this->textures_mesh = textures;
+		this->textures_load = texturesLoad;
+		//if (!textures.empty())
+		//	std::cout << textures.size() << '\n';
 
 		this->modelMatrix = Eigen::Matrix4f::Identity();
+	}
+	void Mesh::SetModelMatrix(Eigen::Vector3f move, Eigen::Vector3f scale)
+	{
+		this->modelMatrix << scale.x(), 0.0f, 0.0f, move.x(),
+			0.0f, scale.y(), 0.0f, move.y(),
+			0.0f, 0.0f, scale.z(), move.z(),
+			0.0f, 0.0f, 0.0f, 1.0f;
 	}
 }

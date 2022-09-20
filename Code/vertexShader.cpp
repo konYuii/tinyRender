@@ -67,6 +67,10 @@ namespace render {
 		for (auto& ver : indice.v)
 		{
 			VertexOut vo;
+			if (mesh->textures_mesh.empty())
+				vo.textureIndex = -1;
+			else
+				vo.textureIndex = mesh->textures_mesh[0];
 			TransformVertex(mesh->vertices[ver], vo);
 			out.push_back(vo);
 		}
@@ -83,26 +87,49 @@ namespace render {
 		Eigen::Vector4f hp = Eigen::Vector4f(vertex.position.x(), vertex.position.y(), vertex.position.z(), 1.0f);
 		Eigen::Vector4f hn = Eigen::Vector4f(vertex.normal.x(), vertex.normal.y(), vertex.normal.z(), 1.0f);
 		
-		Eigen::Vector4f vec4;
-		vec4 = model * hp;
-		v.worldPos = Eigen::Vector3f(vec4.x(), vec4.y(), vec4.z());
+		Eigen::Vector4f vec;
+		vec = ModelTransform(hp);
+		v.worldPos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
-		vec4 = this->view * model * hp;
-		v.csPos = Eigen::Vector3f(vec4.x(), vec4.y(), vec4.z());
+		vec = ViewTransform(ModelTransform(hp));
+		v.csPos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
-		v.hpos = this->projection * this->view * model * hp;
+		v.hpos = ProjectTransform(ViewTransform(ModelTransform(hp)));
 
-		vec4 = ((model).inverse()).transpose() * hn;
-		v.normal = Eigen::Vector3f(vec4.x(), vec4.y(), vec4.z());
+		vec = NormalTransform(hn);
+		v.normal = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
 		//std::cout << glm::to_string(v.hpos) << '\n';
 		//std::cout << v.hpos;
 		//std::cout <<"*****\n";
 	}
 
+	inline Eigen::Vector4f vertexShader::ModelTransform(Eigen::Vector4f vec)
+	{
+		return model * vec;
+	}
+
+	inline Eigen::Vector4f vertexShader::ViewTransform(Eigen::Vector4f vec)
+	{
+		return view * model * vec;
+	}
+
+	inline Eigen::Vector4f vertexShader::ProjectTransform(Eigen::Vector4f vec)
+	{
+		return projection * view * model * vec;
+	}
+
+	inline Eigen::Vector4f vertexShader::NormalTransform(Eigen::Vector4f vec)
+	{
+		
+		return (model.inverse().transpose()) * vec;
+
+	}
+
 	void vertexShader::Clipping(std::vector<VertexOut>& out)
 	{ 
-
+		
+		//zÆ½ÃæÌÞ³ý
 		std::vector<VertexOut> clip(out);
 		out.clear();		
 		for (int i = 0; i < clip.size(); i++)
@@ -166,27 +193,33 @@ namespace render {
 
 		if (out.size() == 0)
 			return;
+		int cnt = 0;
 		for (auto& v : out)
 		{
-			if (std::abs(v.hpos.w()) < 0.1f)
-			{
-				std::cout << "!!!!\n";
-			}
+			//if (std::abs(v.hpos.w()) < 0.1f)
+			//{
+			//	std::cout << "!!!!\n";
+			//}
 			v.hpos = v.hpos / v.hpos.w();
 		}
 	}
 
 	VertexOut vertexShader::Intersect(VertexOut& v1, VertexOut& v2, float line)
 	{
-		Vertex inter;
+		Vertex vertex;
 		float weight = (line - v1.hpos.w()) / (v2.hpos.w() - v1.hpos.w());
 
-		inter.position = LinearInterpolate(v1.worldPos, v2.worldPos, weight);
-		inter.texcoords = LinearInterpolate(v1.texcoord, v2.texcoord, weight);
-		inter.normal = LinearInterpolate(v1.normal, v2.normal, weight);
+		vertex.position = LinearInterpolate(v1.worldPos, v2.worldPos, weight);
+		vertex.texcoords = LinearInterpolate(v1.texcoord, v2.texcoord, weight);
+		vertex.normal = LinearInterpolate(v1.normal, v2.normal, weight);
 
 		VertexOut handle;
-		TransformVertex(inter, handle);
+		handle.textureIndex = v2.textureIndex;
+		handle.csPos = LinearInterpolate(v1.csPos, v2.csPos, weight);
+
+		Eigen::Vector4f hp = Eigen::Vector4f(vertex.position.x(), vertex.position.y(), vertex.position.z(), 1.0f);
+		handle.hpos = ProjectTransform(ViewTransform(hp));
+
 
 		return handle;
 	}

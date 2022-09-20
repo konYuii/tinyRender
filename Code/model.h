@@ -1,25 +1,13 @@
 #pragma once
 
 #include "global.h"
+#include "texture.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
 namespace render {
-	struct Vertex {
-		Eigen::Vector3f position;
-		Eigen::Vector3f normal;
-		Eigen::Vector2f texcoords;
-
-	};
-
-
-	struct Texture {
-		cv::Mat data;
-		std::string type;
-		std::string path;
-	};
 
 
 
@@ -27,10 +15,12 @@ namespace render {
 	public:
 		std::vector<Vertex> vertices;
 		std::vector<Indice> indices;
-		std::vector<Texture *> textures;
+		Texture_loaded* textures_load;
+		std::vector<int> textures_mesh;
+		
 		Eigen::Matrix4f modelMatrix;
-
-		Mesh(std::vector<Vertex> vertices, std::vector<Indice> indices, std::vector<Texture*> textures);
+		Mesh(std::vector<Vertex> vertices, std::vector<Indice> indices, std::vector<int> textures, Texture_loaded* texturesLoad);
+		void SetModelMatrix(Eigen::Vector3f move, Eigen::Vector3f scale);
 
 	};
 
@@ -38,7 +28,7 @@ namespace render {
 	public:
 		std::vector<Mesh> meshes;
 		std::string directory;
-		std::vector<Texture> textures_loaded;
+		Texture_loaded textures_model;
 
 		Model(std::string path)
 		{
@@ -49,6 +39,6 @@ namespace render {
 		void loadModel(std::string path);
 		void processNode(aiNode* node, const aiScene* scene);
 		Mesh processMesh(aiMesh* mesh, const aiScene* scene);
-		std::vector<Texture*> loadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName);
+		std::vector<int> loadMaterialTextures(aiMaterial* mat, aiTextureType type, TextureType myType);
 	};
 }

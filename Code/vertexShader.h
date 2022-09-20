@@ -21,6 +21,10 @@ namespace render {
 		float zfar;
 		
 		void TransformVertex(Vertex vertex, VertexOut& v);
+		inline Eigen::Vector4f ModelTransform(Eigen::Vector4f vec);
+		inline Eigen::Vector4f ViewTransform(Eigen::Vector4f vec);
+		inline Eigen::Vector4f ProjectTransform(Eigen::Vector4f vec);
+		inline Eigen::Vector4f NormalTransform(Eigen::Vector4f vec);
 		void Clipping(std::vector<VertexOut>& out);
 		VertexOut Intersect(VertexOut& v1, VertexOut& v2, float line);
 

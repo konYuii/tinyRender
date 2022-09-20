@@ -17,9 +17,7 @@ namespace render {
 		std::vector<Eigen::Vector2f> screenPos;
 		//screenPos.resize(in.size());
 
-		float xmin, xmax, ymin, ymax;
-		xmin = ymin = std::numeric_limits<float>::max();
-		xmax = ymax = -std::numeric_limits<float>::max();
+
 
 		for (int i = 0; i < in.size(); i++)
 		{
@@ -29,7 +27,7 @@ namespace render {
 		}
 
 
-
+		float xmin, xmax, ymin, ymax;
 		for (int i = 0; i < in.size() - 2; i++)
 		{
 			std::array<Eigen::Vector2f, 3> triangle;
@@ -52,9 +50,19 @@ namespace render {
 			xmax = std::min(xmax, static_cast<float>(bufferWidth));
 			ymax = std::min(ymax, static_cast<float>(bufferHeight));
 
-			//std::cout << xmax << '\n';
-			xmin = floor(xmin); ymin = floor(ymin);
-			xmax = ceil(xmax); ymax = ceil(ymax);
+			if (xmin == 0.0f && xmax == 700.0f)
+			{
+				std::cout << "1£º\n";
+				VectorPrint(inTriangle[0].csPos);
+				VectorPrint(inTriangle[0].hpos);
+				std::cout << "2£º\n";
+				VectorPrint(inTriangle[1].csPos);
+				VectorPrint(inTriangle[1].hpos);
+				std::cout << "3£º\n";
+				VectorPrint(inTriangle[2].csPos);
+				VectorPrint(inTriangle[2].hpos);
+			}
+
 			for (int x = xmin; x < xmax; x++)
 			{
 				for (int y = ymin; y < ymax; y++)
@@ -89,6 +97,7 @@ namespace render {
 							ShadingData pixelIn = InterpolateVertex(inTriangle, bary);
 							pixelIn.cameraPos = cameraPos;
 							//pixelIn.color = (pixelIn.normal + Eigen::Vector3f::Identity()) * 0.5f * 255.0f;
+							pixelIn.textureIndex = inTriangle[0].textureIndex;
 
 							Eigen::Vector3f color = ps->Shading(pixelIn, shader);
 							//std::cout << "ShadingÑÕÉ«£º";

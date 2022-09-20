@@ -7,13 +7,16 @@ size_t width = 700, height = 700;
 float fov = 90.0f;
 float cameraMoveSpeed = .15f;
 float cameraRotateSpeed = render::PI / 60.0f;
-float znear = 0.5f, zfar = 50.0f;
+float znear = -0.5f, zfar = -50.0f;
 Eigen::Vector3f cameraPos = Eigen::Vector3f(0.0f, 0.0f, 2.0f);
 Eigen::Vector3f cameraUp = Eigen::Vector3f(0.0f, 1.0f, 0.0f);
 Eigen::Vector3f cameraRight = Eigen::Vector3f(1.0f, 0.0f, 0.0f);
 
-Eigen::Vector3f light1Pos = Eigen::Vector3f(-20.0, 20.0f, 0.0f);
-Eigen::Vector3f light1Intensity = Eigen::Vector3f(1.0f, 1.0f, 1.0f) * 2.0f;
+Eigen::Vector3f light1Pos = Eigen::Vector3f(-5.0f, 5.0f, 2.0f);
+Eigen::Vector3f light1Intensity = Eigen::Vector3f(1.0f, 1.0f, 1.0f) * 20.0f;
+Eigen::Vector3f light2Pos = Eigen::Vector3f(5.0f, 5.0f, -2.0f);
+Eigen::Vector3f light2Intensity = Eigen::Vector3f(1.0f, 1.0f, 1.0f) * 20.0f;
+Eigen::Vector3f lightSize = Eigen::Vector3f(0.5f, 0.5f, 0.5f);
 
 Eigen::Vector3f ver[] = { {-1.0f,-1.0,0.0f},{-1.0f,1.0f,0.0f},{1.0f,1.0f,0.0f},{1.0f,-1.0f,0.0f},
 						{-1.0f,-1.0,-1.0f},{-1.0f,1.0f,-1.0f},{1.0f,1.0f,-1.0f},{1.0f,-1.0f,-1.0f} };
@@ -33,7 +36,6 @@ int Ind[] = { 0,1,2,
 
 
 int main(){
-
 	
 	render::Camera* camera = new render::Camera(fov, width * 1.0 / height, znear, zfar);
 	camera->pos = cameraPos;
@@ -45,7 +47,7 @@ int main(){
 	render::Shader shader = render::Shader::Color;
 	render::application app(width, height, camera);
 
-	std::vector<render::Texture*> t;
+	std::vector<int> t;
 	int len = (sizeof(Ind) / sizeof(int)) / 3;
 	int verCnt = sizeof(ver) / sizeof(Eigen::Vector3f);
 	std::vector<render::Vertex> vertex(verCnt);
@@ -66,13 +68,17 @@ int main(){
 
 
 
-	render::Mesh mesh(vertex, indice,  t);
-	mesh.modelMatrix = Eigen::Matrix4f::Identity();
+	render::Mesh light(vertex, indice, t, nullptr);
+	
 
 	std::string path = "../models/spot/spot.obj";
 	render::Model model(path);
+	//std::cout<<model.meshes.size()<<'\n';
+	//std::cout << model.textures_model.size();
+	//std::cout << model.meshes[0].vertices.size();
 
 	app.AddPointLight(light1Pos, light1Intensity, 1.0f);
+	app.AddPointLight(light2Pos, light2Intensity, 1.0f);
 	while (true)
 	{
 		
@@ -93,6 +99,11 @@ int main(){
 		//std::cout << control << '\n';
 		//app.Rendering(&mesh);
 		app.Rendering(&model,render::Shader::BlinPhong);
+
+		light.SetModelMatrix(light1Pos, lightSize);
+		app.Rendering(&light, render::Shader::Light);
+		light.SetModelMatrix(light2Pos, lightSize);
+		app.Rendering(&light, render::Shader::Light);
 
 
 		cv::Mat image(width, height, CV_32FC3, app.GetFramebuffer().data());
