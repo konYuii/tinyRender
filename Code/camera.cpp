@@ -32,6 +32,7 @@ namespace render {
 			newRight = this->viewInver * newRight;
 			newRight.normalize();
 			this->right = Eigen::Vector3f(newRight.x(), newRight.y(), newRight.z());
+			this->right.normalize();
 		}
 		else if (axis == 1)
 		{
@@ -39,7 +40,8 @@ namespace render {
 			newUp = this->viewInver * newUp;
 			newUp.normalize();
 			if(std::abs(newUp.dot(Eigen::Vector4f(0.0f,1.0f,0.0f,0.0f))) > 0.9f)
-				this->up = Eigen::Vector3f(newUp.x(), newUp.y(), newUp.z());
+				this->up += Eigen::Vector3f(newUp.x(), newUp.y(), newUp.z());
+			this->up.normalize();
 		}
 
 	}

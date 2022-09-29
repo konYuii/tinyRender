@@ -5,6 +5,7 @@ namespace render {
 	{
 		this->projection = Eigen::Matrix4f::Identity();
 		this->view = Eigen::Matrix4f::Identity();
+		this->clipOn = true;
 	}
 	void vertexShader::SetProjectionMat(float znear, float zfar, float aspect_ratio, float fov)
 	{
@@ -35,7 +36,6 @@ namespace render {
 			0.0f, 0.0f, 0.0f, 1.0f;
 
 		this->projection = scale * move * P2O;
-		//std::cout << glm::to_string(orth) << '\n';
 	}
 	void vertexShader::SetViewMat(Eigen::Vector3f cameraPos, Eigen::Vector3f cameraUp, Eigen::Vector3f lookAt)
 	{
@@ -60,7 +60,7 @@ namespace render {
 		this->view = view;
 	}
 
-	void vertexShader::doVertex(Indice indice, Mesh* mesh, std::vector<VertexOut>& out)
+	void vertexShader::doVertex(Indice indice, Mesh* mesh, std::vector<VertexOut>& out, VertexShaderType vs)
 	{
 		//out.resize(indice.v.size());
 		this->model = mesh->modelMatrix;
@@ -71,15 +71,35 @@ namespace render {
 				vo.textureIndex = -1;
 			else
 				vo.textureIndex = mesh->textures_mesh[0];
-			TransformVertex(mesh->vertices[ver], vo);
+
+			switch (vs)
+			{
+			case render::VertexShaderType::MESH:
+				MeshTransform(mesh->vertices[ver], vo);
+				break;
+			case render::VertexShaderType::SKYBOX:
+				SkyBoxTransform(mesh->vertices[ver], vo);
+				break;
+			default:
+				break;
+			}
+			
 			out.push_back(vo);
 		}
 
-		Clipping(out);
+		if(clipOn)
+			Clipping(out);
 
+		if (out.size() == 0)
+			return;
+		int cnt = 0;
+		for (auto& v : out)
+		{
+			v.hpos = v.hpos / v.hpos.w();
+		}
 	}
 
-	void vertexShader::TransformVertex(Vertex vertex, VertexOut& v)
+	void vertexShader::MeshTransform(Vertex vertex, VertexOut& v)
 	{
 		
 		v.texcoord = vertex.texcoords;
@@ -104,6 +124,19 @@ namespace render {
 		//std::cout <<"*****\n";
 	}
 
+	void vertexShader::SkyBoxTransform(Vertex vertex, VertexOut& v)
+	{
+		Eigen::Vector4f hp = Eigen::Vector4f(vertex.position.x(), vertex.position.y(), vertex.position.z(), 1.0f);
+
+		Eigen::Vector4f vec;
+		vec = ViewInverTransform(hp);
+		v.worldPos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
+
+		v.csPos = vertex.position;
+		
+		v.hpos = ProjectTransform(hp);
+	}
+
 	inline Eigen::Vector4f vertexShader::ModelTransform(Eigen::Vector4f vec)
 	{
 		return model * vec;
@@ -111,12 +144,12 @@ namespace render {
 
 	inline Eigen::Vector4f vertexShader::ViewTransform(Eigen::Vector4f vec)
 	{
-		return view * model * vec;
+		return view * vec;
 	}
 
 	inline Eigen::Vector4f vertexShader::ProjectTransform(Eigen::Vector4f vec)
 	{
-		return projection * view * model * vec;
+		return projection * vec;
 	}
 
 	inline Eigen::Vector4f vertexShader::NormalTransform(Eigen::Vector4f vec)
@@ -126,12 +159,28 @@ namespace render {
 
 	}
 
+	inline Eigen::Vector4f vertexShader::ModelInverTransform(Eigen::Vector4f vec)
+	{
+		return model.inverse() * vec;
+	}
+
+	inline Eigen::Vector4f vertexShader::ViewInverTransform(Eigen::Vector4f vec)
+	{
+		return view.inverse() * vec;
+	}
+
+	inline Eigen::Vector4f vertexShader::ProjectInverTransform(Eigen::Vector4f vec)
+	{
+		return projection.inverse() * vec;
+	}
+
 	void vertexShader::Clipping(std::vector<VertexOut>& out)
 	{ 
-		
+		float line;
 		//zÆ½ÃæÌÞ³ý
 		std::vector<VertexOut> clip(out);
 		out.clear();		
+		line = znear - 0.2f;
 		for (int i = 0; i < clip.size(); i++)
 		{
 			VertexOut& current = clip[i];
@@ -139,23 +188,23 @@ namespace render {
 
 			if (current.hpos.w() == last.hpos.w())
 			{
-				if(current.hpos.w() < znear)
+				if(current.hpos.w() < line)
 					out.push_back(current);
 				continue;
 			}
 
-			if (current.hpos.w() < znear)
+			if (current.hpos.w() <= line)
 			{
-				if (last.hpos.w() > znear)
+				if (last.hpos.w() > line)
 				{
-					VertexOut Intersection = Intersect(last, current, znear);
+					VertexOut Intersection = Intersect(last, current, line);
 					out.push_back(Intersection);
 				}
 				out.push_back(current);
 			}
-			else if (last.hpos.w() < znear)
+			else if (last.hpos.w() <= line)
 			{
-				VertexOut Intersection = Intersect(last, current, znear);
+				VertexOut Intersection = Intersect(last, current, line);
 				out.push_back(Intersection);
 			}
 		}
@@ -191,17 +240,7 @@ namespace render {
 		}
 
 
-		if (out.size() == 0)
-			return;
-		int cnt = 0;
-		for (auto& v : out)
-		{
-			//if (std::abs(v.hpos.w()) < 0.1f)
-			//{
-			//	std::cout << "!!!!\n";
-			//}
-			v.hpos = v.hpos / v.hpos.w();
-		}
+
 	}
 
 	VertexOut vertexShader::Intersect(VertexOut& v1, VertexOut& v2, float line)

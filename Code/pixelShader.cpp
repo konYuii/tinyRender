@@ -9,22 +9,25 @@ namespace render {
 	{
 		this->textures = ts;
 	}
-	Eigen::Vector3f pixelShader::Shading(ShadingData data, Shader shader)
+	Eigen::Vector3f pixelShader::Shading(ShadingData data, PixelShaderType shader)
 	{
 		Eigen::Vector3f res;
 		switch (shader)
 		{
-		case render::Shader::Color:
+		case render::PixelShaderType::COLOR:
 			res = ColorShading(data);
 			break;
-		case render::Shader::BlinPhong:
+		case render::PixelShaderType::BLINPHONG:
 			res = BlinPhong(data);
 			break;
-		case render::Shader::Light:
+		case render::PixelShaderType::LIGHT:
 			res = LightSource(data);
 			break;
+		case render::PixelShaderType::SKYBOX:
+			res = SkyBox(data);
+			break;
 		default:
-			res = Eigen::Vector3f::Zero();
+			res = errorColor;
 			break;
 		}
 
@@ -99,6 +102,72 @@ namespace render {
 	Eigen::Vector3f pixelShader::LightSource(ShadingData)
 	{
 		return Eigen::Vector3f(1.0f,1.0f,1.0f) * 255.0f;
+	}
+	Eigen::Vector3f pixelShader::SkyBox(ShadingData data)
+	{
+		Eigen::Vector3f res;
+
+		Eigen::Vector3f dir = (data.worldPos - data.cameraPos).normalized();
+		Eigen::Vector3f len = Eigen::Vector3f(std::abs(dir.x()), std::abs(dir.y()), std::abs(dir.z()));
+
+		Eigen::Vector2f texcoord;
+		if (len.x() > len.y() && len.x() > len.z())
+		{
+			
+			if (dir.x() >= 0)
+			{
+				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(0, texcoord);
+			}
+				
+			else
+			{
+				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
+				res = SampleTexture(1, texcoord);
+			}
+
+		}
+		else if (len.y() > len.z())
+		{
+			
+			if (dir.y() >= 0)
+			{
+				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(2, texcoord);
+			}
+
+			else
+			{
+				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
+				texcoord = Eigen::Vector2f(0.5f - texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(3, texcoord);
+			}
+
+		}
+		else
+		{
+			if (dir.z() >= 0)
+			{
+				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(5, texcoord);
+			}
+
+			else
+			{
+				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
+				res = SampleTexture(4, texcoord);
+			}
+
+		}
+
+		//dir.normalize();
+		//VectorPrint(dir);
+		return res;
 	}
 }
 

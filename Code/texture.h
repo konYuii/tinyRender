@@ -4,8 +4,9 @@
 namespace render {
 	enum class TextureType
 	{
-		DIFFUSE,SPECULAR,NORMAL,HEIGHT
+		DIFFUSE,SPECULAR,NORMAL,HEIGHT,CUBEMAP
 	};
+
 
 
 	class Texture {
@@ -20,6 +21,7 @@ namespace render {
 	private:
 		cv::Mat image;
 	};
+
 
 	struct Texture_loaded {
 		std::vector<Texture> data;

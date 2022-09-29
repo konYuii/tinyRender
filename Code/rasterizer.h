@@ -15,11 +15,12 @@ namespace render {
 
 		Eigen::Vector3f cameraPos;
 
+		bool zTest;
 		std::vector<float> zbuffer;
 		std::vector<Eigen::Vector3f> frameBuffer;
 
 		rasterizer(size_t width, size_t height);
-		void Rasterize(std::vector<VertexOut> in, Shader shader);
+		void Rasterize(std::vector<VertexOut> in, PixelShaderType shader);
 		void ClearBuffer();
 
 	private:

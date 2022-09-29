@@ -32,14 +32,14 @@ namespace render {
 
 		float u = std::min(0.99999f, std::max(0.00001f, texcoord.x()));
 		float v = std::min(0.99999f, std::max(0.00001f, texcoord.y()));
-		int x = u * this->image.rows;
-		int y = v * this->image.cols;
+		int x = u * this->image.cols;
+		int y = v * this->image.rows;
 
 		
 		//std::cout << texture->image.cols;
 		//std::cout << x << ' ' << y << '\n';
 
-		auto color = this->image.at<cv::Vec3b>(x, y);
+		auto color = this->image.at<cv::Vec3b>(y, x);
 
 		//std::cout << texture->image.size();
 		return Eigen::Vector3f(color[0], color[1], color[2]);

@@ -6,9 +6,9 @@
 
 namespace render {
 
-	enum class Shader
+	enum class PixelShaderType
 	{
-		Color,BlinPhong,Light
+		COLOR,BLINPHONG,LIGHT,SKYBOX
 	};
 
 	class pixelShader {
@@ -18,7 +18,7 @@ namespace render {
 
 		pixelShader();
 		void SetTextures(Texture_loaded* ts);
-		Eigen::Vector3f Shading(ShadingData, Shader shader);
+		Eigen::Vector3f Shading(ShadingData, PixelShaderType shader);
 	private:
 		Eigen::Vector3f SampleTexture(int textureIndex, Eigen::Vector2f texcoord);
 
@@ -26,5 +26,7 @@ namespace render {
 		Eigen::Vector3f ColorShading(ShadingData);
 		Eigen::Vector3f BlinPhong(ShadingData);
 		Eigen::Vector3f LightSource(ShadingData);
+
+		Eigen::Vector3f SkyBox(ShadingData);
 	};
 }

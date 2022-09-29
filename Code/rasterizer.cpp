@@ -11,8 +11,9 @@ namespace render {
 		this->frameBuffer.resize(height * width);
 		for (int i = 0; i < this->zbuffer.size(); i++)
 			this->zbuffer[i] = -std::numeric_limits<float>::max();
+		this->zTest = true;
 	}
-	void rasterizer::Rasterize(std::vector<VertexOut> in ,Shader shader)
+	void rasterizer::Rasterize(std::vector<VertexOut> in ,PixelShaderType shader)
 	{
 		std::vector<Eigen::Vector2f> screenPos;
 		//screenPos.resize(in.size());
@@ -50,18 +51,8 @@ namespace render {
 			xmax = std::min(xmax, static_cast<float>(bufferWidth));
 			ymax = std::min(ymax, static_cast<float>(bufferHeight));
 
-			if (xmin == 0.0f && xmax == 700.0f)
-			{
-				std::cout << "1£º\n";
-				VectorPrint(inTriangle[0].csPos);
-				VectorPrint(inTriangle[0].hpos);
-				std::cout << "2£º\n";
-				VectorPrint(inTriangle[1].csPos);
-				VectorPrint(inTriangle[1].hpos);
-				std::cout << "3£º\n";
-				VectorPrint(inTriangle[2].csPos);
-				VectorPrint(inTriangle[2].hpos);
-			}
+			//if (shader == PixelShaderType::SKYBOX)
+			//	VectorPrint(inTriangle[0].worldPos);
 
 			for (int x = xmin; x < xmax; x++)
 			{
@@ -81,18 +72,15 @@ namespace render {
 
 
 						int bPos = getBufferPos(x, y);
-						//std::cout << "zÖµ£º" << zip << '\n';
-						//std::cout << "zbuffer£º" << this->zbuffer[bPos];
-						//if (zip > this->zbuffer[bPos])
-						//	std::cout << "get\n";
+
 
 						if (bPos >= 0 && bPos < zbuffer.size() && zip > zbuffer[bPos])
 						{
 							bary = std::array<float, 3>({ bary[0] * zip / inTriangle[0].csPos.z(),
 														  bary[1] * zip / inTriangle[1].csPos.z(),
 														  bary[2] * zip / inTriangle[2].csPos.z() });
-
-							this->zbuffer[bPos] = zip;
+							if(zTest)
+								this->zbuffer[bPos] = zip;
 
 							ShadingData pixelIn = InterpolateVertex(inTriangle, bary);
 							pixelIn.cameraPos = cameraPos;
