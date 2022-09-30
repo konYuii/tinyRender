@@ -38,6 +38,72 @@ namespace render {
 		
 		return textures->data[index].GetPixel(texcoord);
 	}
+
+	Eigen::Vector3f pixelShader::SampleCubeMap(Eigen::Vector3f dir)
+	{
+		Eigen::Vector3f res;
+
+		Eigen::Vector3f len = Eigen::Vector3f(std::abs(dir.x()), std::abs(dir.y()), std::abs(dir.z()));
+
+		Eigen::Vector2f texcoord;
+		if (len.x() > len.y() && len.x() > len.z())
+		{
+
+			if (dir.x() >= 0)
+			{
+				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(0, texcoord);
+			}
+
+			else
+			{
+				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
+				res = SampleTexture(1, texcoord);
+			}
+
+		}
+		else if (len.y() > len.z())
+		{
+
+			if (dir.y() >= 0)
+			{
+				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(2, texcoord);
+			}
+
+			else
+			{
+				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
+				texcoord = Eigen::Vector2f(0.5f - texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(3, texcoord);
+			}
+
+		}
+		else
+		{
+			if (dir.z() >= 0)
+			{
+				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
+				res = SampleTexture(5, texcoord);
+			}
+
+			else
+			{
+				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
+				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
+				res = SampleTexture(4, texcoord);
+			}
+
+		}
+
+		return res;
+	}
+
+
 	Eigen::Vector3f render::pixelShader::ColorShading(ShadingData data)
 	{
 		return data.color;
@@ -108,63 +174,8 @@ namespace render {
 		Eigen::Vector3f res;
 
 		Eigen::Vector3f dir = (data.worldPos - data.cameraPos).normalized();
-		Eigen::Vector3f len = Eigen::Vector3f(std::abs(dir.x()), std::abs(dir.y()), std::abs(dir.z()));
-
-		Eigen::Vector2f texcoord;
-		if (len.x() > len.y() && len.x() > len.z())
-		{
-			
-			if (dir.x() >= 0)
-			{
-				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
-				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(0, texcoord);
-			}
-				
-			else
-			{
-				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
-				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
-				res = SampleTexture(1, texcoord);
-			}
-
-		}
-		else if (len.y() > len.z())
-		{
-			
-			if (dir.y() >= 0)
-			{
-				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
-				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(2, texcoord);
-			}
-
-			else
-			{
-				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
-				texcoord = Eigen::Vector2f(0.5f - texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(3, texcoord);
-			}
-
-		}
-		else
-		{
-			if (dir.z() >= 0)
-			{
-				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
-				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(5, texcoord);
-			}
-
-			else
-			{
-				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
-				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
-				res = SampleTexture(4, texcoord);
-			}
-
-		}
-
+		
+		res = SampleCubeMap(dir);
 		//dir.normalize();
 		//VectorPrint(dir);
 		return res;

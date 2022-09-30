@@ -21,6 +21,7 @@ namespace render {
 		Eigen::Vector3f Shading(ShadingData, PixelShaderType shader);
 	private:
 		Eigen::Vector3f SampleTexture(int textureIndex, Eigen::Vector2f texcoord);
+		Eigen::Vector3f SampleCubeMap(Eigen::Vector3f dir);
 
 
 		Eigen::Vector3f ColorShading(ShadingData);
