@@ -1,6 +1,7 @@
 #include "application.h"
 
 namespace render {
+
 	application::application(size_t bufferWidth, size_t bufferHeight, Camera* camera)
 	{
 		this->rs = new rasterizer(bufferWidth, bufferHeight);
@@ -27,9 +28,10 @@ namespace render {
 		else if (control == 2621440)
 			camera->Rotate(1, 1);
 	}
-	void application::BeginRender()
+
+	void application::BeginRender(size_t bufferWidth, size_t bufferHeight)
 	{
-		this->ClearBuffer();
+		this->rs->BeginRasterize(bufferWidth, bufferHeight);
 		SetViewMatrix(camera->SetView());
 		SetProjectionMatrix(camera->znear, camera->zfar, camera->aspect_ratio, camera->fov);
 		this->rs->cameraPos = camera->pos;
@@ -44,7 +46,10 @@ namespace render {
 	}
 	void application::Rendering(Mesh* mesh, VertexShaderType vs, PixelShaderType ps)
 	{
+
+
 		this->rs->ps->SetTextures(mesh->textures_load);
+		this->vs->SetModelMat(mesh->modelMatrix);
 		if (ps == PixelShaderType::SKYBOX)
 		{
 			this->vs->clipOn = false;
@@ -58,7 +63,7 @@ namespace render {
 		//std::cout << mesh->textures_load->data.size();
 		for (auto& indice : mesh->indices)
 		{
-			std::vector<VertexOut> vout;
+			std::vector<ShadingData> vout;
 			this->vs->doVertex(indice, mesh, vout, vs);
 			if (vout.size() == 0)
 			{
@@ -69,34 +74,52 @@ namespace render {
 	}
 
 
-	void application::ClearBuffer()
+	Eigen::Matrix4f application::SetViewMatrix(Eigen::Vector3f cameraPos, Eigen::Vector3f cameraUp, Eigen::Vector3f lookAt)
 	{
-		this->rs->ClearBuffer();
-	}
-	void application::SetViewMatrix(Eigen::Vector3f cameraPos, Eigen::Vector3f cameraUp, Eigen::Vector3f lookAt)
-	{
-		this->vs->SetViewMat(cameraPos, cameraUp, lookAt);
+		return this->vs->SetViewMat(cameraPos, cameraUp, lookAt);
 	}
 	void application::SetViewMatrix(Eigen::Matrix4f view)
 	{
 		this->vs->SetViewMat(view);
 	}
-	void application::SetProjectionMatrix(float znear, float zfar, float aspect_ratio, float fov)
+	void application::SetModelMatrix(Eigen::Matrix4f model)
 	{
-		this->vs->SetProjectionMat(znear, zfar, aspect_ratio, fov);
+		this->vs->SetModelMat(model);
 	}
+	Eigen::Matrix4f application::SetProjectionMatrix(float znear, float zfar, float aspect_ratio, float fov)
+	{
+		return this->vs->SetProjectionMat(znear, zfar, aspect_ratio, fov);
+	}
+
+	Eigen::Matrix4f application::SetOrthoMatrix(float znear, float zfar, float width, float height)
+	{
+		return this->vs->SetOrthoMat(znear, zfar, width, height);
+	}
+
+
 	std::vector<Eigen::Vector3f>& application::GetFramebuffer()
 	{
 		return this->rs->frameBuffer;
 	}
 	void application::AddPointLight(Eigen::Vector3f pos, Eigen::Vector3f intensity, float radius)
 	{
-		Light light;
-		light.type = LightType::PointLight;
+		PointLight light;
 		light.position = pos;
 		light.intensity = intensity;
 		light.radius = radius;
 
-		this->rs->ps->lights.push_back(light);
+		this->rs->ps->pointLights.push_back(light);
+	}
+	void application::AddDirectionLight(Eigen::Vector3f pos, Eigen::Vector3f intensity, Eigen::Vector3f direction, float width, float height, float znear, float zfar)
+	{
+		DirectLight light;
+		light.position = pos;
+		light.intensity = intensity;
+		light.direction = direction;
+		light.width = width;
+		light.height = height;
+		light.znear = znear;
+		light.zfar = zfar;
+		this->rs->ps->directLights.push_back(light);
 	}
 }

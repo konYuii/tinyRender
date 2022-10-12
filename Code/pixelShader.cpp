@@ -26,6 +26,7 @@ namespace render {
 		case render::PixelShaderType::SKYBOX:
 			res = SkyBox(data);
 			break;
+
 		default:
 			res = errorColor;
 			break;
@@ -104,64 +105,69 @@ namespace render {
 	}
 
 
+
+
 	Eigen::Vector3f render::pixelShader::ColorShading(ShadingData data)
 	{
-		return data.color;
+		return testColor;
 	}
 	Eigen::Vector3f pixelShader::BlinPhong(ShadingData data)
 	{
 		Eigen::Vector3f color = Eigen::Vector3f::Zero();
+
 		
 		Eigen::Vector3f ambient = Eigen::Vector3f(0.15f, 0.15f, 0.15f) * 255.0f;
 		Eigen::Vector3f diffuse = Eigen::Vector3f::Zero();
 		Eigen::Vector3f specular = Eigen::Vector3f::Zero();
 
+		Eigen::Vector3f kd;
+		Eigen::Vector3f ks;
+		Eigen::Vector3f vi;
+		Eigen::Vector3f vo;
+		Eigen::Vector3f h;
+		float distance2;
 
-		for (auto& light : this->lights)
+		float p = 100.0f;
+
+		if (data.textureIndex == -1)
 		{
-			Eigen::Vector3f vi;
-			Eigen::Vector3f vo;
-			Eigen::Vector3f h;
-			float distance2;
-			Eigen::Vector3f kd;
-			Eigen::Vector3f ks;
-			float p = 100.0f;
+			kd = testColor;
+			ks = kd;
+		}
+		else
+		{
+			kd = SampleTexture(data.textureIndex, data.texcoord);
+			ks = kd;
+			//VectorPrint(kd);
+		}
 
-			if (light.type == LightType::PointLight)
-			{
-				vi = light.position - data.worldPos;
-			}
-			else
-			{
-				vi = light.direction;
-			}
 
-			vo = data.cameraPos - data.worldPos;
+		for (auto& light : this->pointLights)
+		{
+			vi = light.position - data.WS_Pos;
+			vo = data.cameraPos - data.WS_Pos;
 			distance2 = vi.squaredNorm();
 			vi.normalize();
 			vo.normalize();
 			h = (vi + vo).normalized();
-	
-			if (data.textureIndex == -1)
-			{
-				kd = testColor;
-				ks = kd;
-			}
-			else
-			{
-				kd = SampleTexture(data.textureIndex, data.texcoord);
-				ks = kd;
-				//VectorPrint(kd);
-			}
 
+			diffuse += kd.cwiseProduct(light.intensity) / distance2 * std::max(0.0f, data.normal.dot(vi));
+			specular += kd.cwiseProduct(light.intensity) / distance2 * powf(std::max(0.0f, data.normal.dot(h)), p);
+		}
+		for (auto& light : this->directLights)
+		{
+			vi = light.direction;
+			vo = data.cameraPos - data.WS_Pos;
+			distance2 = 20.0f;
+			vi.normalize();
+			vo.normalize();
+			h = (vi + vo).normalized();
 
-			
 			diffuse += kd.cwiseProduct(light.intensity) / distance2 * std::max(0.0f, data.normal.dot(vi));
 			specular += kd.cwiseProduct(light.intensity) / distance2 * powf(std::max(0.0f, data.normal.dot(h)), p);
 
-			
 		}
-		color = ambient + diffuse + specular;
+		color = ambient + diffuse +specular;
 
 		return color;
 	}
@@ -173,12 +179,13 @@ namespace render {
 	{
 		Eigen::Vector3f res;
 
-		Eigen::Vector3f dir = (data.worldPos - data.cameraPos).normalized();
+		Eigen::Vector3f dir = (data.WS_Pos - data.cameraPos).normalized();
 		
 		res = SampleCubeMap(dir);
 		//dir.normalize();
 		//VectorPrint(dir);
 		return res;
 	}
+
 }
 

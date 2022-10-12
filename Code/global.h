@@ -6,6 +6,7 @@
 #include<queue>
 #include<string>
 #include<limits>
+#include<unordered_map>
 
 
 
@@ -15,6 +16,7 @@ namespace render
 	static Eigen::Vector3f testColor = Eigen::Vector3f(123.0f, 191.0f, 234.0f);
 	static Eigen::Vector3f errorColor = Eigen::Vector3f(255.0f, 182.0f, 193.0f);
 
+
 	struct Vertex {
 		Eigen::Vector3f position;
 		Eigen::Vector3f normal;
@@ -22,28 +24,24 @@ namespace render
 
 	};
 
-
-	struct VertexOut {
-		Eigen::Vector3f worldPos;
-		Eigen::Vector3f csPos;
-		Eigen::Vector4f hpos;
-		Eigen::Vector3f normal;
-		Eigen::Vector2f texcoord;
-
-		int textureIndex;
-	};
-
+	//struct ShadingData {
+	//	std::unordered_map<std::string, Eigen::Vector2f> vec2;
+	//	std::unordered_map<std::string, Eigen::Vector3f> vec3;
+	//	std::unordered_map<std::string, Eigen::Vector4f> vec4;
+	//};
 	struct ShadingData {
-
-		Eigen::Vector3f worldPos;
-		Eigen::Vector3f csPos;
-		Eigen::Vector3f normal;
+		int textureIndex;
 		Eigen::Vector2f texcoord;
-		Eigen::Vector3f color;
+		Eigen::Vector3f WS_Pos;
+		Eigen::Vector3f CS_Pos;
+		Eigen::Vector4f ST_Pos;
+		
+		Eigen::Vector3f normal;
 
 		Eigen::Vector3f cameraPos;
-		int textureIndex;
+		Eigen::Vector4f LS_Pos;
 	};
+
 
 	struct Indice {
 		std::vector<int> v;

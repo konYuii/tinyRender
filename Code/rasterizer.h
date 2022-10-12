@@ -20,18 +20,20 @@ namespace render {
 		std::vector<Eigen::Vector3f> frameBuffer;
 
 		rasterizer(size_t width, size_t height);
-		void Rasterize(std::vector<VertexOut> in, PixelShaderType shader);
+		void BeginRasterize(size_t bufferWidth, size_t bufferHeight);
+		void Rasterize(std::vector<ShadingData> in, PixelShaderType shader);
 		void ClearBuffer();
 
 	private:
 
 
-		Eigen::Vector2f getScreenPos(VertexOut vo);
+		Eigen::Vector2f getScreenPos(ShadingData vo);
 		inline size_t getBufferPos(size_t x, size_t y);
 		bool insideTriangle(std::array<Eigen::Vector2f,3> v, Eigen::Vector2f pixel);
 		std::array<float, 3> barycentricInterpolation(std::array<Eigen::Vector2f, 3> v, Eigen::Vector2f pixel);
-		ShadingData InterpolateVertex(std::array<VertexOut, 3> v, std::array<float, 3> bary);
+		ShadingData InterpolateVertex(std::array<ShadingData, 3> v, std::array<float, 3> bary);
 		inline Eigen::Vector3f Interpolate(std::array<Eigen::Vector3f, 3> vec, std::array<float, 3> bary);
 		inline Eigen::Vector2f Interpolate(std::array<Eigen::Vector2f, 3> vec, std::array<float, 3> bary);
+		inline Eigen::Vector4f Interpolate(std::array<Eigen::Vector4f, 3> vec, std::array<float, 3> bary);
 	};
 }

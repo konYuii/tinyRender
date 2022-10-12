@@ -3,11 +3,12 @@
 namespace render {
 	vertexShader::vertexShader()
 	{
-		this->projection = Eigen::Matrix4f::Identity();
+		this->project = Eigen::Matrix4f::Identity();
 		this->view = Eigen::Matrix4f::Identity();
+
 		this->clipOn = true;
 	}
-	void vertexShader::SetProjectionMat(float znear, float zfar, float aspect_ratio, float fov)
+	Eigen::Matrix4f vertexShader::SetProjectionMat(float znear, float zfar, float aspect_ratio, float fov)
 	{
 		znear = znear > 0 ? -znear : znear;
 		zfar = zfar > 0 ? -zfar : zfar;
@@ -35,9 +36,26 @@ namespace render {
 			0.0f, 0.0f, 2.0f / (-zfar + znear), 0.0f,
 			0.0f, 0.0f, 0.0f, 1.0f;
 
-		this->projection = scale * move * P2O;
+		this->project = scale * move * P2O;
+		this->orthoProject = false;
+		return this->project;
 	}
-	void vertexShader::SetViewMat(Eigen::Vector3f cameraPos, Eigen::Vector3f cameraUp, Eigen::Vector3f lookAt)
+	Eigen::Matrix4f vertexShader::SetOrthoMat(float znear, float zfar, float width, float height)
+	{
+		znear = znear > 0 ? -znear : znear;
+		zfar = zfar > 0 ? -zfar : zfar;
+		this->znear = znear;
+		this->zfar = zfar;
+
+
+		this->project << 1.0f / width, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f / height, 0.0f, 0.0f,
+			0.0f, 0.0f, 2.0f / (-zfar + znear), -(znear + zfar) / (znear - zfar),
+			0.0f, 0.0f, 1.0f, 0.0f;
+		this->orthoProject = true;
+		return this->project;
+	}
+	Eigen::Matrix4f vertexShader::SetViewMat(Eigen::Vector3f cameraPos, Eigen::Vector3f cameraUp, Eigen::Vector3f lookAt)
 	{
 		Eigen::Matrix4f move;
 		move << 1.0f, 0.0f, 0.0f, -cameraPos.x(),
@@ -53,6 +71,7 @@ namespace render {
 			0.0f, 0.0f, 0.0f, 1.0f;
 
 		this->view = project * move;
+		return this->view;
 	}
 
 	void vertexShader::SetViewMat(Eigen::Matrix4f view)
@@ -60,13 +79,21 @@ namespace render {
 		this->view = view;
 	}
 
-	void vertexShader::doVertex(Indice indice, Mesh* mesh, std::vector<VertexOut>& out, VertexShaderType vs)
+	void vertexShader::SetModelMat(Eigen::Matrix4f model)
+	{
+		this->model = model;
+		this->mvp = this->project * this->view * this->model;
+		this->mv = this->view * this->model;
+		this->normalMat = this->model.inverse().transpose();
+	}
+
+	void vertexShader::doVertex(Indice indice, Mesh* mesh, std::vector<ShadingData>& out, VertexShaderType vs)
 	{
 		//out.resize(indice.v.size());
-		this->model = mesh->modelMatrix;
+
 		for (auto& ver : indice.v)
 		{
-			VertexOut vo;
+			ShadingData vo;
 			if (mesh->textures_mesh.empty())
 				vo.textureIndex = -1;
 			else
@@ -89,17 +116,17 @@ namespace render {
 
 		if(clipOn)
 			Clipping(out);
-
-		if (out.size() == 0)
+		if (out.size() == 0 || orthoProject)
 			return;
-		int cnt = 0;
 		for (auto& v : out)
 		{
-			v.hpos = v.hpos / v.hpos.w();
+			v.ST_Pos.x() /= v.ST_Pos.w();
+			v.ST_Pos.y() /= v.ST_Pos.w();
+			v.ST_Pos.z() /= v.ST_Pos.w();
 		}
 	}
 
-	void vertexShader::MeshTransform(Vertex vertex, VertexOut& v)
+	void vertexShader::MeshTransform(Vertex vertex, ShadingData& v)
 	{
 		
 		v.texcoord = vertex.texcoords;
@@ -108,133 +135,96 @@ namespace render {
 		Eigen::Vector4f hn = Eigen::Vector4f(vertex.normal.x(), vertex.normal.y(), vertex.normal.z(), 1.0f);
 		
 		Eigen::Vector4f vec;
-		vec = ModelTransform(hp);
-		v.worldPos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
+		vec = model * hp;
+		v.WS_Pos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
-		vec = ViewTransform(ModelTransform(hp));
-		v.csPos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
+		vec = mv * hp;
+		v.CS_Pos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
-		v.hpos = ProjectTransform(ViewTransform(ModelTransform(hp)));
+		v.ST_Pos = mvp * hp;
 
-		vec = NormalTransform(hn);
+		vec = normalMat * hn;
 		v.normal = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
-		//std::cout << glm::to_string(v.hpos) << '\n';
-		//std::cout << v.hpos;
-		//std::cout <<"*****\n";
+
 	}
 
-	void vertexShader::SkyBoxTransform(Vertex vertex, VertexOut& v)
+	void vertexShader::SkyBoxTransform(Vertex vertex, ShadingData& v)
 	{
 		Eigen::Vector4f hp = Eigen::Vector4f(vertex.position.x(), vertex.position.y(), vertex.position.z(), 1.0f);
 
 		Eigen::Vector4f vec;
-		vec = ViewInverTransform(hp);
-		v.worldPos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
+		vec = view.inverse() * hp;
+		v.WS_Pos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
 
-		v.csPos = vertex.position;
+		v.CS_Pos = vertex.position;
 		
-		v.hpos = ProjectTransform(hp);
+		v.ST_Pos = project * hp;
 	}
 
-	inline Eigen::Vector4f vertexShader::ModelTransform(Eigen::Vector4f vec)
-	{
-		return model * vec;
-	}
 
-	inline Eigen::Vector4f vertexShader::ViewTransform(Eigen::Vector4f vec)
-	{
-		return view * vec;
-	}
 
-	inline Eigen::Vector4f vertexShader::ProjectTransform(Eigen::Vector4f vec)
-	{
-		return projection * vec;
-	}
 
-	inline Eigen::Vector4f vertexShader::NormalTransform(Eigen::Vector4f vec)
-	{
-		
-		return (model.inverse().transpose()) * vec;
-
-	}
-
-	inline Eigen::Vector4f vertexShader::ModelInverTransform(Eigen::Vector4f vec)
-	{
-		return model.inverse() * vec;
-	}
-
-	inline Eigen::Vector4f vertexShader::ViewInverTransform(Eigen::Vector4f vec)
-	{
-		return view.inverse() * vec;
-	}
-
-	inline Eigen::Vector4f vertexShader::ProjectInverTransform(Eigen::Vector4f vec)
-	{
-		return projection.inverse() * vec;
-	}
-
-	void vertexShader::Clipping(std::vector<VertexOut>& out)
+	void vertexShader::Clipping(std::vector<ShadingData>& out)
 	{ 
 		float line;
 		//zÆ½ÃæÌÞ³ý
-		std::vector<VertexOut> clip(out);
+		std::vector<ShadingData> clip(out);
 		out.clear();		
-		line = znear - 0.2f;
 		for (int i = 0; i < clip.size(); i++)
 		{
-			VertexOut& current = clip[i];
-			VertexOut& last = clip[(i + clip.size() - 1) % clip.size()];
+			ShadingData& current = clip[i];
+			ShadingData& last = clip[(i + clip.size() - 1) % clip.size()];
 
-			if (current.hpos.w() == last.hpos.w())
+			if (current.ST_Pos.w() == last.ST_Pos.w())
 			{
-				if(current.hpos.w() < line)
+				if(current.ST_Pos.w() < znear)
 					out.push_back(current);
 				continue;
 			}
 
-			if (current.hpos.w() <= line)
+			if (current.ST_Pos.w() <= znear)
 			{
-				if (last.hpos.w() > line)
+				if (last.ST_Pos.w() > znear)
 				{
-					VertexOut Intersection = Intersect(last, current, line);
+					ShadingData Intersection = Intersect(last, current, znear);
 					out.push_back(Intersection);
 				}
 				out.push_back(current);
 			}
-			else if (last.hpos.w() <= line)
+			else if (last.ST_Pos.w() <= znear)
 			{
-				VertexOut Intersection = Intersect(last, current, line);
+				ShadingData Intersection = Intersect(last, current, znear);
 				out.push_back(Intersection);
 			}
 		}
 
-		std::vector<VertexOut> clip2(out);
+		std::vector<ShadingData> clip2(out);
 		out.clear();
 		for (int i = 0; i < clip2.size(); i++)
 		{
-			VertexOut& current = clip2[i];
-			VertexOut& last = clip2[(i + clip2.size() - 1) % clip2.size()];
+			ShadingData& current = clip2[i];
+			ShadingData& last = clip2[(i + clip2.size() - 1) % clip2.size()];
 
-			if (current.hpos.w() == last.hpos.w())
+			if (current.ST_Pos.w() == last.ST_Pos.w())
 			{
-				if (current.hpos.w() > zfar)
+				if (current.ST_Pos.w() > zfar)
 					out.push_back(current);
 				continue;
 			}
 
-			if (current.hpos.w() >= zfar)
+			if (current.ST_Pos.w() >= zfar)
 			{
-				if (last.hpos.w() <= zfar)
+				if (last.ST_Pos.w() <= zfar)
 				{
-					VertexOut Intersection = Intersect(last, current, zfar);
+					ShadingData Intersection = Intersect(last, current, zfar);
 					out.push_back(Intersection);
 				}
 				out.push_back(current);
 			}
-			else if (last.hpos.w() >= zfar)
+			else if (last.ST_Pos.w() >= zfar)
 			{
-				VertexOut Intersection = Intersect(last, current, zfar);
+				ShadingData Intersection = Intersect(last, current, zfar);
 				out.push_back(Intersection);
 			}
 		}
@@ -243,23 +233,23 @@ namespace render {
 
 	}
 
-	VertexOut vertexShader::Intersect(VertexOut& v1, VertexOut& v2, float line)
+	ShadingData vertexShader::Intersect(ShadingData& v1, ShadingData& v2, float line)
 	{
-		Vertex vertex;
-		float weight = (line - v1.hpos.w()) / (v2.hpos.w() - v1.hpos.w());
 
-		vertex.position = LinearInterpolate(v1.worldPos, v2.worldPos, weight);
-		vertex.texcoords = LinearInterpolate(v1.texcoord, v2.texcoord, weight);
-		vertex.normal = LinearInterpolate(v1.normal, v2.normal, weight);
+		float weight = (line - v1.ST_Pos.w()) / (v2.ST_Pos.w() - v1.ST_Pos.w());
 
-		VertexOut handle;
+		ShadingData handle;
+		handle.texcoord = LinearInterpolate(v1.texcoord, v2.texcoord, weight);
 		handle.textureIndex = v2.textureIndex;
-		handle.csPos = LinearInterpolate(v1.csPos, v2.csPos, weight);
+		handle.normal = LinearInterpolate(v1.normal, v2.normal, weight);
+		handle.CS_Pos = LinearInterpolate(v1.CS_Pos, v2.CS_Pos, weight);
 
-		Eigen::Vector4f hp = Eigen::Vector4f(vertex.position.x(), vertex.position.y(), vertex.position.z(), 1.0f);
-		handle.hpos = ProjectTransform(ViewTransform(hp));
-
-
+		Eigen::Vector4f vec;
+		Eigen::Vector4f hp = Eigen::Vector4f(handle.CS_Pos[0], handle.CS_Pos[1], handle.CS_Pos[2], 1.0f);
+		handle.ST_Pos = project * hp;
+		vec = view.inverse() * hp;
+		handle.WS_Pos = Eigen::Vector3f(vec.x(), vec.y(), vec.z());
+		
 		return handle;
 	}
 

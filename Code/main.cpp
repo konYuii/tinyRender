@@ -15,9 +15,9 @@ Eigen::Vector3f cameraRight = Eigen::Vector3f(1.0f, 0.0f, 0.0f);
 
 
 #pragma region 光源参数
-Eigen::Vector3f light1Pos = Eigen::Vector3f(-5.0f, 5.0f, 2.0f);
+Eigen::Vector3f light1Pos = Eigen::Vector3f(-5.0f, 5.0f, -2.0f);
 Eigen::Vector3f light1Intensity = Eigen::Vector3f(1.0f, 1.0f, 1.0f) * 20.0f;
-Eigen::Vector3f light2Pos = Eigen::Vector3f(5.0f, 5.0f, -2.0f);
+Eigen::Vector3f light2Pos = Eigen::Vector3f(3.0f, 3.0f, 2.0f);
 Eigen::Vector3f light2Intensity = Eigen::Vector3f(1.0f, 1.0f, 1.0f) * 20.0f;
 Eigen::Vector3f lightSize = Eigen::Vector3f(0.2f, 0.2f, 0.2f);
 #pragma endregion
@@ -127,7 +127,8 @@ int main(){
 	//std::cout << model.meshes[0].vertices.size();
 
 	app.AddPointLight(light1Pos, light1Intensity, 1.0f);
-	app.AddPointLight(light2Pos, light2Intensity, 1.0f);
+	app.AddDirectionLight(light2Pos, light2Intensity, -(light2Pos.normalized()), 5.0f, 5.0f, 0.5f, 30.0f);
+
 
 	bool first = true;
 	while (true)
@@ -140,17 +141,16 @@ int main(){
 		{
 			first = false;
 			app.CameraControl(control);
-			app.BeginRender();
+			app.BeginRender(width, height);
 
 			skybox.SetModelMatrix(camera->pos, skyboxScale);
-			app.Rendering(&skybox, render::VertexShaderType::SKYBOX,render::PixelShaderType::SKYBOX);
+			//app.Rendering(&skybox, render::VertexShaderType::SKYBOX,render::PixelShaderType::SKYBOX);
 
 
 			app.Rendering(&model, render::VertexShaderType::MESH, render::PixelShaderType::BLINPHONG);
-			light.SetModelMatrix(light1Pos, lightSize);
-			app.Rendering(&light, render::VertexShaderType::MESH, render::PixelShaderType::LIGHT);
 			light.SetModelMatrix(light2Pos, lightSize);
 			app.Rendering(&light, render::VertexShaderType::MESH, render::PixelShaderType::LIGHT);
+
 
 
 		}
