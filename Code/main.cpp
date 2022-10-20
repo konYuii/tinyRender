@@ -1,5 +1,6 @@
 #include "application.h"
-#include "camera.h"
+#include "tool.h"
+#include "shaders/shaderType.h"
 #include<opencv2/opencv.hpp>
 
 size_t width = 700, height = 700;
@@ -10,7 +11,7 @@ float cameraRotateSpeed = render::PI / 60.0f;
 float znear = -0.5f, zfar = -50.0f;
 Eigen::Vector3f cameraPos = Eigen::Vector3f(0.0f, 0.0f, 4.0f);
 Eigen::Vector3f cameraUp = Eigen::Vector3f(0.0f, 1.0f, 0.0f);
-Eigen::Vector3f cameraRight = Eigen::Vector3f(1.0f, 0.0f, 0.0f);
+Eigen::Vector3f lookAt = Eigen::Vector3f(0.0f, 0.0f, -1.0f);
 #pragma endregion
 
 
@@ -73,10 +74,7 @@ void BindVertex(std::vector<Eigen::Vector3f>& ver, std::vector<int>& Ind, std::v
 
 int main(){
 	
-	render::Camera* camera = new render::Camera(fov, width * 1.0 / height, znear, zfar);
-	camera->pos = cameraPos;
-	camera->up = cameraUp;
-	camera->right = cameraRight;
+	render::Camera* camera = new render::Camera(cameraPos, cameraUp, lookAt);
 	camera->moveSpeed = cameraMoveSpeed;
 	camera->rotateSpeed = cameraRotateSpeed;
 
@@ -128,7 +126,11 @@ int main(){
 
 	app.AddPointLight(light1Pos, light1Intensity, 1.0f);
 	app.AddDirectionLight(light2Pos, light2Intensity, -(light2Pos.normalized()), 5.0f, 5.0f, 0.5f, 30.0f);
+	app.AddClipPlane(render::ClipPlane::POSITIVE_W);
+	app.AddClipPlane(render::ClipPlane::POSITIVE_Z);
+	app.AddClipPlane(render::ClipPlane::NEGATIVE_Z);
 
+	render::BlinPhong spotShader;
 
 	bool first = true;
 	while (true)
@@ -143,15 +145,13 @@ int main(){
 			app.CameraControl(control);
 			app.BeginRender(width, height);
 
-			skybox.SetModelMatrix(camera->pos, skyboxScale);
+			//skybox.SetModelMatrix(camera->pos, skyboxScale);
 			//app.Rendering(&skybox, render::VertexShaderType::SKYBOX,render::PixelShaderType::SKYBOX);
 
-
-			app.Rendering(&model, render::VertexShaderType::MESH, render::PixelShaderType::BLINPHONG);
-			light.SetModelMatrix(light2Pos, lightSize);
-			app.Rendering(&light, render::VertexShaderType::MESH, render::PixelShaderType::LIGHT);
-
-
+			spotShader.uniform.modelMat = model.modelMatrix;
+			spotShader.uniform.viewMat = render::GetViewMat(camera->pos, camera->up, camera->lookAt);
+			spotShader.uniform.projectMat = render::GetProjectionMat(znear, zfar, width * 1.0 / height, fov);
+			app.Rendering(&model, &spotShader);
 
 		}
 

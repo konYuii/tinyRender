@@ -7,24 +7,17 @@ namespace render {
 	public:
 		Eigen::Vector3f pos;
 		Eigen::Vector3f up;
-		Eigen::Vector3f right;
+		Eigen::Vector3f lookAt;
 
-		float fov;
-		float aspect_ratio;		
-		float znear;
-		float zfar;
+		
 
 		float moveSpeed;
 		float rotateSpeed;
-
-		Camera(float fov, float ratio, float znear, float zfar);
+		Camera(Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f);
 		void Move(Eigen::Vector3f move);
 		void Rotate(int axis, int counterSide);
-		Eigen::Matrix4f SetView();
+
 	private:
-
-		Eigen::Matrix4f viewInver;
-		Eigen::Matrix4f view;
-
+		Eigen::Matrix3f GetMat(Eigen::Vector3f Up, Eigen::Vector3f LookAt);
 	};
 }

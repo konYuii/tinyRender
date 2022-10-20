@@ -29,9 +29,11 @@ namespace render {
 		std::vector<Mesh> meshes;
 		std::string directory;
 		Texture_loaded textures_model;
+		Eigen::Matrix4f modelMatrix;
 
 		Model(std::string path)
 		{
+			modelMatrix = Eigen::Matrix4f::Identity();
 			loadModel(path);
 		}
 	private:

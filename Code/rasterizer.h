@@ -1,39 +1,45 @@
 #pragma once
 
-#include "vertexShader.h"
-#include "pixelShader.h"
+#include "global.h"
 #include "light.h"
+#include "shaders/shaderProgram.h"
+#include "tool.h"
 
 namespace render {
+	enum class ClipPlane
+	{
+		POSITIVE_X,NEGATIVE_X, POSITIVE_Y, NEGATIVE_Y, POSITIVE_Z, NEGATIVE_Z,POSITIVE_W
+	};
 
 	class rasterizer {
 	public:
 		size_t bufferWidth;
 		size_t bufferHeight;
 		
-		pixelShader* ps;
 
-		Eigen::Vector3f cameraPos;
 
 		bool zTest;
+		bool clipOn;
+		std::vector<ClipPlane> planes;
+
 		std::vector<float> zbuffer;
 		std::vector<Eigen::Vector3f> frameBuffer;
 
-		rasterizer(size_t width, size_t height);
+		rasterizer();
 		void BeginRasterize(size_t bufferWidth, size_t bufferHeight);
-		void Rasterize(std::vector<ShadingData> in, PixelShaderType shader);
+		void Rasterize(IShader* shader);
 		void ClearBuffer();
 
 	private:
 
 
-		Eigen::Vector2f getScreenPos(ShadingData vo);
+		Eigen::Vector2f getScreenPos(Eigen::Vector4f vec);
 		inline size_t getBufferPos(size_t x, size_t y);
 		bool insideTriangle(std::array<Eigen::Vector2f,3> v, Eigen::Vector2f pixel);
 		std::array<float, 3> barycentricInterpolation(std::array<Eigen::Vector2f, 3> v, Eigen::Vector2f pixel);
-		ShadingData InterpolateVertex(std::array<ShadingData, 3> v, std::array<float, 3> bary);
-		inline Eigen::Vector3f Interpolate(std::array<Eigen::Vector3f, 3> vec, std::array<float, 3> bary);
-		inline Eigen::Vector2f Interpolate(std::array<Eigen::Vector2f, 3> vec, std::array<float, 3> bary);
-		inline Eigen::Vector4f Interpolate(std::array<Eigen::Vector4f, 3> vec, std::array<float, 3> bary);
+
+		bool insidePlane(Eigen::Vector4f vec, ClipPlane plane);
+		float getClipRatio(Eigen::Vector4f last, Eigen::Vector4f cur, ClipPlane plane);
+
 	};
 }

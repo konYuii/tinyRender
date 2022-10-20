@@ -1,23 +1,18 @@
 #include"camera.h"
 
 namespace render {
-	Camera::Camera(float fov, float ratio, float znear, float zfar)
+	Camera::Camera(Eigen::Vector3f pos, Eigen::Vector3f up, Eigen::Vector3f lookAt)
 	{
-		this->fov = fov;
-		this->aspect_ratio = ratio;
-		this->znear = znear;
-		this->zfar = zfar;
+		this->pos = pos;
+		this->up = up;
+		this->lookAt = lookAt;
 
-		this->viewInver = Eigen::Matrix4f::Identity();
-		this->pos = Eigen::Vector3f();
-		this->right = Eigen::Vector3f();
-		this->up = Eigen::Vector3f();
+		this->moveSpeed = 0.0f;
+		this->rotateSpeed = 0.0f;
 	}
 	void Camera::Move(Eigen::Vector3f move)
 	{
-		Eigen::Vector4f v(move.x(), move.y(), move.z(), 0.0f);
-		v = this->viewInver * v;
-		move = Eigen::Vector3f(v.x(), v.y(), v.z());
+		move = GetMat(up,lookAt) * move;
 		this->pos += move * this->moveSpeed;
 	}
 
@@ -28,46 +23,39 @@ namespace render {
 			speed = -rotateSpeed;
 		if (axis == 0)
 		{
-			Eigen::Vector4f newRight(cos(speed), 0.0f, sin(speed), 0.0f);
-			newRight = this->viewInver * newRight;
+			Eigen::Vector3f newRight(cos(speed), 0.0f, sin(speed));
+			newRight = GetMat(Eigen::Vector3f(0.0f, 1.0f, 0.0f), Eigen::Vector3f(lookAt.x(), 0.0f, lookAt.z()).normalized()) * newRight;
 			newRight.normalize();
-			this->right = Eigen::Vector3f(newRight.x(), newRight.y(), newRight.z());
-			this->right.normalize();
+			lookAt = up.cross(newRight);
 		}
 		else if (axis == 1)
 		{
-			Eigen::Vector4f newUp(0.0f, cos(speed), sin(speed), 0.0f);
-			newUp = this->viewInver * newUp;
+			Eigen::Vector3f newUp(0.0f, cos(speed), sin(speed));
+			newUp = GetMat(up, lookAt) * newUp;
 			newUp.normalize();
-			if(std::abs(newUp.dot(Eigen::Vector4f(0.0f,1.0f,0.0f,0.0f))) > 0.9f)
-				this->up += Eigen::Vector3f(newUp.x(), newUp.y(), newUp.z());
-			this->up.normalize();
+			if (newUp.y() > 0.9f)
+			{
+				up = newUp;
+			}
+
 		}
 
 	}
 
-	Eigen::Matrix4f Camera::SetView()
+	Eigen::Matrix3f Camera::GetMat(Eigen::Vector3f Up,Eigen::Vector3f LookAt)
 	{
-		Eigen::Matrix4f move;
-		move << 1.0f, 0.0f, 0.0f, -pos.x(),
-			0.0f, 1.0f, 0.0f, -pos.y(),
-			0.0f, 0.0f, 1.0f, -pos.z(),
-			0.0f, 0.0f, 0.0f, 1.0f;
 
-
-		Eigen::Matrix4f view;
-
-		Eigen::Vector3f lookAt = this->up.cross(this->right);
-		view << right.x(), right.y(), right.z(), 0.0f,
-			up.x(), up.y(), up.z(), 0.0f,
-			-lookAt.x(), -lookAt.y(), -lookAt.z(), 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f;
+		Eigen::Vector3f Right = LookAt.cross(Up);
+		Eigen::Matrix3f trans;
+		trans << Right.x(), Right.y(), Right.z(),
+			Up.x(), Up.y(), Up.z(),
+			-LookAt.x(), -LookAt.y(), -LookAt.z();
 		
-		this->view = view * move;
-		this->viewInver = this->view.inverse();
 
-		return this->view;
+		return trans.transpose();
+
 	}
+
 
 
 }

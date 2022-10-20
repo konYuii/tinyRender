@@ -1,20 +1,15 @@
 #include "rasterizer.h"
 
 namespace render {
-	rasterizer::rasterizer(size_t width, size_t height)
+	rasterizer::rasterizer()
 	{
-		this->ps = new pixelShader();
-
-		this->bufferHeight = height;
-		this->bufferWidth = width;
-		this->zbuffer.resize(height * width);
-		this->frameBuffer.resize(height * width);
-		for (int i = 0; i < this->zbuffer.size(); i++)
-			this->zbuffer[i] = -std::numeric_limits<float>::max();
+		this->clipOn = true;
 		this->zTest = true;
 	}
 	void rasterizer::BeginRasterize(size_t width, size_t height)
 	{
+		this->bufferWidth = width;
+		this->bufferHeight = height;
 		this->zbuffer.resize(height * width);
 		this->frameBuffer.resize(height * width);
 		for (int i = 0; i < this->zbuffer.size(); i++)
@@ -24,38 +19,70 @@ namespace render {
 		}
 
 	}
-	void rasterizer::Rasterize(std::vector<ShadingData> in ,PixelShaderType shader)
+	void rasterizer::Rasterize(IShader* shader)
 	{
-		std::vector<Eigen::Vector2f> screenPos;
-		//screenPos.resize(in.size());
 
-
-
-		for (int i = 0; i < in.size(); i++)
+		if (clipOn)
 		{
+			for (auto& plane : planes)
+			{
+				shader->ClipBegin();
+				//std::cout << (int)plane << "   pre:" << shader->ST_Pos.size() << '\n';
+				int size = shader->ST_Pos.size();
+				for (int i = 0; i < size; i++)
+				{
+					Eigen::Vector4f cur = shader->ST_Pos[i];
+					Eigen::Vector4f last = shader->ST_Pos[(size + i - 1) % size];
+					//VectorPrint(cur);
+					if (insidePlane(cur, plane))
+					{
+						if (!insidePlane(last, plane))
+						{
+							float weight = getClipRatio(last, cur, plane);
+							weight = Clamp(weight, 0.0f, 1.0f);
+							//std::cout << weight << '\n';
+							shader->ClipAddPoint(weight, i, (size + i - 1) % size);
+						}
+						shader->ClipAddPoint(i);
+					}
+					else
+					{
+						if (insidePlane(last, plane))
+						{
+							float weight = getClipRatio(last, cur, plane);
+							weight = Clamp(weight, 0.0f, 1.0f);
+							shader->ClipAddPoint(weight, i, (size + i - 1) % size);
+						}
+					}
+				}
+				//std::cout << "out : " << shader->ST_Pos.size() << '\n';
+				shader->ClipOver();
+			}
+		}
 
-			Eigen::Vector2f pos = getScreenPos(in[i]);
+		std::vector<Eigen::Vector2f> screenPos;
+		for (auto& vec : shader->ST_Pos)
+		{
+			vec /= vec.w() + EPS;
+			Eigen::Vector2f pos = getScreenPos(vec);
 			screenPos.push_back(pos);
 		}
 
 
 		float xmin, xmax, ymin, ymax;
-		for (int i = 0; i < in.size() - 2; i++)
+		for (int i = 0; i < int(screenPos.size() - 2); i++)
 		{
-			std::array<Eigen::Vector2f, 3> triangle;
-			std::array<ShadingData, 3> inTriangle;
-			triangle[0] = screenPos[0];
-			inTriangle[0] = in[0];
-			triangle[1] = screenPos[i + 1];
-			inTriangle[1] = in[i + 1];
-			triangle[2] = screenPos[i + 2];
-			inTriangle[2] = in[i + 2];
 
-			
-			xmin = std::min(screenPos[0].x(), std::min(screenPos[i + 1].x(), screenPos[i + 2].x()));
-			xmax = std::max(screenPos[0].x(), std::max(screenPos[i + 1].x(), screenPos[i + 2].x()));
-			ymin = std::min(screenPos[0].y(), std::min(screenPos[i + 1].y(), screenPos[i + 2].y()));
-			ymax = std::max(screenPos[0].y(), std::max(screenPos[i + 1].y(), screenPos[i + 2].y()));
+			std::array<Eigen::Vector2f, 3> triangle;
+			triangle[0] = screenPos[0];
+			triangle[1] = screenPos[i + 1];
+			triangle[2] = screenPos[i + 2];
+
+
+			xmin = std::min(triangle[0].x(), std::min(triangle[1].x(), triangle[2].x()));
+			xmax = std::max(triangle[0].x(), std::max(triangle[1].x(), triangle[2].x()));
+			ymin = std::min(triangle[0].y(), std::min(triangle[1].y(), triangle[2].y()));
+			ymax = std::max(triangle[0].y(), std::max(triangle[1].y(), triangle[2].y()));
 
 			xmin = std::max(xmin, 0.0f);
 			ymin = std::max(ymin, 0.0f);
@@ -63,8 +90,7 @@ namespace render {
 			ymax = std::min(ymax, static_cast<float>(bufferHeight));
 
 
-			//VectorPrint(inTriangle[0].ST_Pos);
-
+			//std::cout << "rasterizing!\n";
 			for (int x = xmin; x < xmax; x++)
 			{
 				for (int y = ymin; y < ymax; y++)
@@ -75,28 +101,28 @@ namespace render {
 					Eigen::Vector2f pixelPos = Eigen::Vector2f(xpos, ypos);
 					if (insideTriangle(triangle, pixelPos))
 					{
-						std::array<float, 3> bary = barycentricInterpolation(triangle, pixelPos);
+						std::array<float, 3> weight = barycentricInterpolation(triangle, pixelPos);
 
 						//透视矫正
 
 						float zip;
-						zip = 1.0f / (bary[0] / inTriangle[0].ST_Pos.w() + bary[1] / inTriangle[1].ST_Pos.w() + bary[2] / inTriangle[2].ST_Pos.w());
-					
-						bary = std::array<float, 3>({ bary[0] * zip / inTriangle[0].ST_Pos.w(),
-													  bary[1] * zip / inTriangle[1].ST_Pos.w(),
-													  bary[2] * zip / inTriangle[2].ST_Pos.w() });
-						//std::cout << "bary：" << bary[0] << ' ' << bary[1] << ' ' << bary[2] << '\n';
-						
+						zip = 1.0f / (weight[0] / shader->ST_Pos[0].w() + weight[1] / shader->ST_Pos[i + 1].w() + weight[2] / shader->ST_Pos[i + 2].w());
+
+						weight = std::array<float, 3>({ weight[0] * zip / shader->ST_Pos[0].w(),
+													  weight[1] * zip / shader->ST_Pos[i + 1].w(),
+													  weight[2] * zip / shader->ST_Pos[i + 2].w() });
+						//std::cout << "weight：" << weight[0] << ' ' << weight[1] << ' ' << weight[2] << '\n';
+
 						int bPos = getBufferPos(x, y);
 
-
+						//std::cout << zip << "\n";
 						if (bPos >= 0 && bPos < zbuffer.size() && zip > zbuffer[bPos])
 						{
-							if(zTest)
+							if (zTest)
 								this->zbuffer[bPos] = zip;
-							ShadingData pixelIn = InterpolateVertex(inTriangle, bary);
 
-							Eigen::Vector3f color = ps->Shading(pixelIn, shader);
+							shader->InterpolateValue(weight, i + 1);
+							Eigen::Vector3f color = shader->PS();
 
 							this->frameBuffer[bPos] = color;
 							//VectorPrint(color);
@@ -104,7 +130,7 @@ namespace render {
 
 					}
 				}
-		}
+			}
 
 		}
 	}
@@ -119,10 +145,10 @@ namespace render {
 		}
 
 	}
-	Eigen::Vector2f rasterizer::getScreenPos(ShadingData vo)
+	Eigen::Vector2f rasterizer::getScreenPos(Eigen::Vector4f vec)
 	{
-		
-		Eigen::Vector2f pos = Eigen::Vector2f(vo.ST_Pos.x(), vo.ST_Pos.y());
+
+		Eigen::Vector2f pos = Eigen::Vector2f(vec.x(), vec.y());
 
 		pos.x() = ((pos.x() + 1.0f) * 0.5f) * static_cast<float>(bufferWidth);
 		pos.y() = ((1.0f - pos.y()) * 0.5f) * static_cast<float>(bufferHeight);
@@ -148,7 +174,7 @@ namespace render {
 		float z1 = AB.x() * AP.y() - AB.y() * AP.x();
 		float z2 = BC.x() * BP.y() - BC.y() * BP.x();
 		float z3 = CA.x() * CP.y() - CA.y() * CP.x();
-		
+
 		//std::cout << "向量：" << z1 << ' ' << z2 << ' ' << z3 << '\n';
 
 
@@ -179,29 +205,51 @@ namespace render {
 		//保持系数的顺序
 		return std::array<float, 3>({ alpha, beta, 1.0f - alpha - beta });
 	}
-	ShadingData rasterizer::InterpolateVertex(std::array<ShadingData, 3> v, std::array<float, 3> bary)
+
+	bool rasterizer::insidePlane(Eigen::Vector4f coord, ClipPlane plane)
 	{
-		ShadingData out;
-		out.normal = (Interpolate(std::array<Eigen::Vector3f, 3>({ v[0].normal,v[1].normal,v[2].normal }), bary));
-		out.texcoord = Interpolate(std::array<Eigen::Vector2f, 3>({ v[0].texcoord,v[1].texcoord,v[2].texcoord }), bary);
-		out.WS_Pos = Interpolate(std::array<Eigen::Vector3f, 3>({ v[0].WS_Pos,v[1].WS_Pos,v[2].WS_Pos }), bary);
-		out.cameraPos = cameraPos;
-		out.textureIndex = v[0].textureIndex;
-		
-		out.LS_Pos = Interpolate(std::array<Eigen::Vector4f, 3>({ v[0].LS_Pos,v[1].LS_Pos,v[2].LS_Pos }), bary);
-		//VectorPrint(out.LS_Pos);
-		return out;
+		switch (plane) {
+		case ClipPlane::POSITIVE_W:
+			return coord.w() <= -EPS;
+		case ClipPlane::POSITIVE_X:
+			return coord.x() >= +coord.w();
+		case ClipPlane::NEGATIVE_X:
+			return coord.x() <= -coord.w();
+		case ClipPlane::POSITIVE_Y:
+			return coord.y() >= +coord.w();
+		case ClipPlane::NEGATIVE_Y:
+			return coord.y() <= -coord.w();
+		case ClipPlane::POSITIVE_Z:
+			return coord.z() >= +coord.w();
+		case ClipPlane::NEGATIVE_Z:
+			return coord.z() <= -coord.w();
+		default:
+			assert(0);
+			return 0;
+		}
 	}
-	inline Eigen::Vector3f rasterizer::Interpolate(std::array<Eigen::Vector3f, 3> vec, std::array<float, 3> bary)
+
+	float rasterizer::getClipRatio(Eigen::Vector4f last, Eigen::Vector4f cur, ClipPlane plane)
 	{
-		return vec[0] * bary[0] + vec[1] * bary[1] + vec[2] * bary[2];
+		switch (plane) {
+		case ClipPlane::POSITIVE_W:
+			return (last.w() - EPS) / (last.w() - cur.w());
+		case ClipPlane::POSITIVE_X:
+			return (last.w() - last.x()) / ((last.w() - last.x()) - (cur.w() - cur.x()));
+		case ClipPlane::NEGATIVE_X:
+			return (last.w() + last.x()) / ((last.w() + last.x()) - (cur.w() + cur.x()));
+		case ClipPlane::POSITIVE_Y:
+			return (last.w() - last.y()) / ((last.w() - last.y()) - (cur.w() - cur.y()));
+		case ClipPlane::NEGATIVE_Y:
+			return (last.w() + last.y()) / ((last.w() + last.y()) - (cur.w() + cur.y()));
+		case ClipPlane::POSITIVE_Z:
+			return (last.w() - last.z()) / ((last.w() - last.z()) - (cur.w() - cur.z()));
+		case ClipPlane::NEGATIVE_Z:
+			return (last.w() + last.z()) / ((last.w() + last.z()) - (cur.w() + cur.z()));
+		default:
+			assert(0);
+			return 0;
+		}
 	}
-	inline Eigen::Vector2f rasterizer::Interpolate(std::array<Eigen::Vector2f, 3> vec, std::array<float, 3> bary)
-	{
-		return vec[0] * bary[0] + vec[1] * bary[1] + vec[2] * bary[2];
-	}
-	inline Eigen::Vector4f rasterizer::Interpolate(std::array<Eigen::Vector4f, 3> vec, std::array<float, 3> bary)
-	{
-		return vec[0] * bary[0] + vec[1] * bary[1] + vec[2] * bary[2];
-	}
+
 }
