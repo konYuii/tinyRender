@@ -30,5 +30,8 @@ namespace render {
 		void AddDirectionLight(Eigen::Vector3f pos, Eigen::Vector3f intensity, Eigen::Vector3f direction, float width, float height, float znear, float zfar);
 
 		void AddClipPlane(ClipPlane plane);
+
+		void ClipOn(bool clip);
+		void ZTestOn(bool ztest);
 	};
 }

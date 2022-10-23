@@ -89,4 +89,12 @@ namespace render {
 	{
 		rs->planes.push_back(plane);
 	}
+	void application::ClipOn(bool clip)
+	{
+		this->rs->clipOn = clip;
+	}
+	void application::ZTestOn(bool ztest)
+	{
+		this->rs->zTest = ztest;
+	}
 }

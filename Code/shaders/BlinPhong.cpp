@@ -4,7 +4,7 @@ namespace render {
 	void BlinPhong::VS(Indice* indice, Mesh* mesh)
 	{
 		Eigen::Matrix4f mvpMat = uniform.projectMat * uniform.viewMat * uniform.modelMat;
-		Eigen::Matrix4f normalMat = uniform.modelMat.inverse().transpose();
+		Eigen::Matrix4f normalMat = (uniform.modelMat).inverse().transpose();
 		vertexOut.resize(3);
 		ST_Pos.resize(3);
 		for (int i = 0; i < 3; i++)

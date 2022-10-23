@@ -68,13 +68,12 @@ namespace render {
 		return view;
 	}
 
-	static Eigen::Vector3f SampleTexture(int index, Eigen::Vector2f texcoord)
+	static Eigen::Vector3f SampleTexture(Texture texture, Eigen::Vector2f texcoord)
 	{
-
-		return Eigen::Vector3f::Zero();
+		return texture.GetPixel(texcoord);
 	}
 
-	static Eigen::Vector3f SampleCubeMap(Eigen::Vector3f dir)
+	static Eigen::Vector3f SampleCubeMap(Texture_loaded* textures, Eigen::Vector3f dir)
 	{
 		Eigen::Vector3f res;
 
@@ -88,14 +87,14 @@ namespace render {
 			{
 				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
 				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(0, texcoord);
+				res = SampleTexture(textures->data[0], texcoord);
 			}
 
 			else
 			{
 				texcoord = Eigen::Vector2f(dir.z(), dir.y()) * 0.5f / dir.x();
 				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
-				res = SampleTexture(1, texcoord);
+				res = SampleTexture(textures->data[1], texcoord);
 			}
 
 		}
@@ -106,14 +105,14 @@ namespace render {
 			{
 				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
 				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(2, texcoord);
+				res = SampleTexture(textures->data[2], texcoord);
 			}
 
 			else
 			{
 				texcoord = Eigen::Vector2f(dir.x(), dir.z()) * 0.5f / dir.y();
 				texcoord = Eigen::Vector2f(0.5f - texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(3, texcoord);
+				res = SampleTexture(textures->data[3], texcoord);
 			}
 
 		}
@@ -123,14 +122,14 @@ namespace render {
 			{
 				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
 				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f - texcoord.y());
-				res = SampleTexture(5, texcoord);
+				res = SampleTexture(textures->data[5], texcoord);
 			}
 
 			else
 			{
 				texcoord = Eigen::Vector2f(-dir.x(), dir.y()) * 0.5f / dir.z();
 				texcoord = Eigen::Vector2f(0.5f + texcoord.x(), 0.5f + texcoord.y());
-				res = SampleTexture(4, texcoord);
+				res = SampleTexture(textures->data[4], texcoord);
 			}
 
 		}

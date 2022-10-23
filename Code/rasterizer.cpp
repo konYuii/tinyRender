@@ -21,7 +21,6 @@ namespace render {
 	}
 	void rasterizer::Rasterize(IShader* shader)
 	{
-
 		if (clipOn)
 		{
 			for (auto& plane : planes)
@@ -63,7 +62,10 @@ namespace render {
 		std::vector<Eigen::Vector2f> screenPos;
 		for (auto& vec : shader->ST_Pos)
 		{
-			vec /= vec.w() + EPS;
+			vec.x() = vec.x() / vec.w();
+			vec.y() = vec.y() / vec.w();
+			vec.z() = vec.z() / vec.w();
+			//VectorPrint(vec);
 			Eigen::Vector2f pos = getScreenPos(vec);
 			screenPos.push_back(pos);
 		}
@@ -111,6 +113,7 @@ namespace render {
 						weight = std::array<float, 3>({ weight[0] * zip / shader->ST_Pos[0].w(),
 													  weight[1] * zip / shader->ST_Pos[i + 1].w(),
 													  weight[2] * zip / shader->ST_Pos[i + 2].w() });
+
 						//std::cout << "weight£º" << weight[0] << ' ' << weight[1] << ' ' << weight[2] << '\n';
 
 						int bPos = getBufferPos(x, y);
@@ -231,6 +234,7 @@ namespace render {
 
 	float rasterizer::getClipRatio(Eigen::Vector4f last, Eigen::Vector4f cur, ClipPlane plane)
 	{
+		//std::cout << "clip happend\n";
 		switch (plane) {
 		case ClipPlane::POSITIVE_W:
 			return (last.w() - EPS) / (last.w() - cur.w());

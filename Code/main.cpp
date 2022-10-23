@@ -131,6 +131,7 @@ int main(){
 	app.AddClipPlane(render::ClipPlane::NEGATIVE_Z);
 
 	render::BlinPhong spotShader;
+	render::SkyBox skyboxShader;
 
 	bool first = true;
 	while (true)
@@ -145,13 +146,33 @@ int main(){
 			app.CameraControl(control);
 			app.BeginRender(width, height);
 
-			//skybox.SetModelMatrix(camera->pos, skyboxScale);
-			//app.Rendering(&skybox, render::VertexShaderType::SKYBOX,render::PixelShaderType::SKYBOX);
+			Eigen::Matrix4f view = render::GetViewMat(camera->pos, camera->up, camera->lookAt);
+			Eigen::Matrix4f project = render::GetProjectionMat(znear, zfar, width * 1.0 / height, fov);
 
+#pragma region äÖÈ¾Ìì¿ÕºÐ
+			app.ZTestOn(false);
+			app.ClipOn(false);
+			skybox.SetModelMatrix(camera->pos, skyboxScale);
+			skyboxShader.uniform.view = view;
+			skyboxShader.uniform.project = project;
+			skyboxShader.uniform.cameraPos = camera->pos;
+			skyboxShader.uniform.texture = skybox.textures_load;
+			app.Rendering(&skybox, &skyboxShader);
+			
+#pragma endregion
+
+
+
+#pragma region äÖÈ¾Ä£ÐÍ
+			app.ZTestOn(true);
+			app.ClipOn(true);
 			spotShader.uniform.modelMat = model.modelMatrix;
-			spotShader.uniform.viewMat = render::GetViewMat(camera->pos, camera->up, camera->lookAt);
-			spotShader.uniform.projectMat = render::GetProjectionMat(znear, zfar, width * 1.0 / height, fov);
+			spotShader.uniform.viewMat = view;
+			spotShader.uniform.projectMat = project;
 			app.Rendering(&model, &spotShader);
+#pragma endregion
+
+
 
 		}
 

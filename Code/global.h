@@ -12,8 +12,8 @@
 
 namespace render
 {
-	constexpr auto PI = 3.1415926;
-	constexpr auto EPS = 1e-5;
+	constexpr float PI = 3.1415926;
+	constexpr float EPS = 1e-7;
 	static Eigen::Vector3f testColor = Eigen::Vector3f(123.0f, 191.0f, 234.0f);
 	static Eigen::Vector3f errorColor = Eigen::Vector3f(255.0f, 182.0f, 193.0f);
 
