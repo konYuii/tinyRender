@@ -38,6 +38,7 @@ namespace render {
 		bool insideTriangle(std::array<Eigen::Vector2f,3> v, Eigen::Vector2f pixel);
 		std::array<float, 3> barycentricInterpolation(std::array<Eigen::Vector2f, 3> v, Eigen::Vector2f pixel);
 
+		void clip(IShader* shader, ClipPlane plane);
 		bool insidePlane(Eigen::Vector4f vec, ClipPlane plane);
 		float getClipRatio(Eigen::Vector4f last, Eigen::Vector4f cur, ClipPlane plane);
 

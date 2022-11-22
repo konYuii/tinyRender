@@ -14,58 +14,29 @@ namespace render {
 		this->frameBuffer.resize(height * width);
 		for (int i = 0; i < this->zbuffer.size(); i++)
 		{
-			this->zbuffer[i] = -std::numeric_limits<float>::max();
+			this->zbuffer[i] = std::numeric_limits<float>::max();
 			this->frameBuffer[i] = Eigen::Vector3f::Zero();
 		}
 
 	}
 	void rasterizer::Rasterize(IShader* shader)
 	{
+
 		if (clipOn)
 		{
 			for (auto& plane : planes)
 			{
-				shader->ClipBegin();
-				//std::cout << (int)plane << "   pre:" << shader->ST_Pos.size() << '\n';
-				int size = shader->ST_Pos.size();
-				for (int i = 0; i < size; i++)
-				{
-					Eigen::Vector4f cur = shader->ST_Pos[i];
-					Eigen::Vector4f last = shader->ST_Pos[(size + i - 1) % size];
-					//VectorPrint(cur);
-					if (insidePlane(cur, plane))
-					{
-						if (!insidePlane(last, plane))
-						{
-							float weight = getClipRatio(last, cur, plane);
-							weight = Clamp(weight, 0.0f, 1.0f);
-							//std::cout << weight << '\n';
-							shader->ClipAddPoint(weight, i, (size + i - 1) % size);
-						}
-						shader->ClipAddPoint(i);
-					}
-					else
-					{
-						if (insidePlane(last, plane))
-						{
-							float weight = getClipRatio(last, cur, plane);
-							weight = Clamp(weight, 0.0f, 1.0f);
-							shader->ClipAddPoint(weight, i, (size + i - 1) % size);
-						}
-					}
-				}
-				//std::cout << "out : " << shader->ST_Pos.size() << '\n';
-				shader->ClipOver();
+				clip(shader, plane);
 			}
 		}
-
+		
 		std::vector<Eigen::Vector2f> screenPos;
 		for (auto& vec : shader->ST_Pos)
 		{
-			vec.x() = vec.x() / vec.w();
-			vec.y() = vec.y() / vec.w();
-			vec.z() = vec.z() / vec.w();
-			//VectorPrint(vec);
+			float zv = vec.w();
+			vec /= zv;
+			vec.w() = zv;
+
 			Eigen::Vector2f pos = getScreenPos(vec);
 			screenPos.push_back(pos);
 		}
@@ -104,28 +75,27 @@ namespace render {
 					if (insideTriangle(triangle, pixelPos))
 					{
 						std::array<float, 3> weight = barycentricInterpolation(triangle, pixelPos);
-
+						//std::cout << "weight£º" << weight[0] << ' ' << weight[1] << ' ' << weight[2] << '\n';
 						//Í¸ÊÓ½ÃÕý
-
 						float zip;
 						zip = 1.0f / (weight[0] / shader->ST_Pos[0].w() + weight[1] / shader->ST_Pos[i + 1].w() + weight[2] / shader->ST_Pos[i + 2].w());
+						float ztest = weight[0] * shader->ST_Pos[0].z() + weight[1] * shader->ST_Pos[i + 1].z() + weight[2] * shader->ST_Pos[i + 2].z();
 
 						weight = std::array<float, 3>({ weight[0] * zip / shader->ST_Pos[0].w(),
-													  weight[1] * zip / shader->ST_Pos[i + 1].w(),
-													  weight[2] * zip / shader->ST_Pos[i + 2].w() });
-
-						//std::cout << "weight£º" << weight[0] << ' ' << weight[1] << ' ' << weight[2] << '\n';
+														  weight[1] * zip / shader->ST_Pos[i + 1].w(),
+														  weight[2] * zip / shader->ST_Pos[i + 2].w() });
+						
 
 						int bPos = getBufferPos(x, y);
 
 						//std::cout << zip << "\n";
-						if (bPos >= 0 && bPos < zbuffer.size() && zip > zbuffer[bPos])
+						if (bPos >= 0 && bPos < zbuffer.size() && ztest < zbuffer[bPos])
 						{
 							if (zTest)
-								this->zbuffer[bPos] = zip;
+								this->zbuffer[bPos] = ztest;
 
 							shader->InterpolateValue(weight, i + 1);
-							Eigen::Vector3f color = shader->PS();
+							Eigen::Vector3f color = shader->PS(x, y);
 
 							this->frameBuffer[bPos] = color;
 							//VectorPrint(color);
@@ -209,23 +179,59 @@ namespace render {
 		return std::array<float, 3>({ alpha, beta, 1.0f - alpha - beta });
 	}
 
+	void rasterizer::clip(IShader* shader, ClipPlane plane)
+	{
+		shader->ClipBegin();
+		//std::cout << (int)plane << "   pre:" << shader->ST_Pos.size() << '\n';
+		int size = shader->ST_Pos.size();
+		for (int i = 0; i < size; i++)
+		{
+			int preIndex = (size + i - 1) % size;
+			Eigen::Vector4f cur = shader->ST_Pos[i];
+			Eigen::Vector4f last = shader->ST_Pos[preIndex];
+			//VectorPrint(cur);
+			if (insidePlane(cur, plane))
+			{
+
+				if (!insidePlane(last, plane))
+				{
+					float weight = getClipRatio(last, cur, plane);
+					//weight = Clamp(weight, 0.0f, 1.0f);
+					//std::cout << weight << '\n';
+					shader->ClipAddPoint(weight, preIndex, i);
+				}
+				shader->ClipAddPoint(i);
+			}
+			else
+			{
+				if (insidePlane(last, plane))
+				{
+					float weight = getClipRatio(last, cur, plane);
+					//weight = Clamp(weight, 0.0f, 1.0f);
+					shader->ClipAddPoint(weight, preIndex, i);
+				}
+			}
+		}
+
+		shader->ClipOver();
+		//std::cout << "out : " << shader->ST_Pos.size() << '\n';
+	}
+
 	bool rasterizer::insidePlane(Eigen::Vector4f coord, ClipPlane plane)
 	{
 		switch (plane) {
-		case ClipPlane::POSITIVE_W:
-			return coord.w() <= -EPS;
 		case ClipPlane::POSITIVE_X:
-			return coord.x() >= +coord.w();
+			return coord.x() <= coord.w();
 		case ClipPlane::NEGATIVE_X:
-			return coord.x() <= -coord.w();
+			return coord.x() >= -coord.w();
 		case ClipPlane::POSITIVE_Y:
-			return coord.y() >= +coord.w();
+			return coord.y() <= coord.w();
 		case ClipPlane::NEGATIVE_Y:
-			return coord.y() <= -coord.w();
+			return coord.y() >= -coord.w();
 		case ClipPlane::POSITIVE_Z:
-			return coord.z() >= +coord.w();
+			return coord.z() <= coord.w();
 		case ClipPlane::NEGATIVE_Z:
-			return coord.z() <= -coord.w();
+			return coord.z() >= -coord.w();
 		default:
 			assert(0);
 			return 0;
@@ -236,10 +242,8 @@ namespace render {
 	{
 		//std::cout << "clip happend\n";
 		switch (plane) {
-		case ClipPlane::POSITIVE_W:
-			return (last.w() - EPS) / (last.w() - cur.w());
 		case ClipPlane::POSITIVE_X:
-			return (last.w() - last.x()) / ((last.w() - last.x()) - (cur.w() - cur.x()));
+			return (last.w() - last.x()) / ((last.w() -last.x()) - (cur.w() - cur.x()));
 		case ClipPlane::NEGATIVE_X:
 			return (last.w() + last.x()) / ((last.w() + last.x()) - (cur.w() + cur.x()));
 		case ClipPlane::POSITIVE_Y:

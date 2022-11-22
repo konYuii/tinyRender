@@ -26,7 +26,7 @@ namespace render {
 		SkyBoxUniform uniform;
 
 		void VS(Indice* indice, Mesh* mesh);
-		Eigen::Vector3f PS();
+		Eigen::Vector3f PS(int x,int y);
 		void InterpolateValue(std::array<float, 3> weight, int mid);
 
 	};

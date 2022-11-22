@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rasterizer.h"
-#include "camera.h"
 
 namespace render {
 
@@ -10,11 +9,8 @@ namespace render {
 	public:
 
 		rasterizer* rs;
-		Camera* camera;
 
-		application(size_t bufferWidth, size_t bufferHeight, Camera* camera);
-
-		void CameraControl(int);
+		application(size_t bufferWidth, size_t bufferHeight);
 
 		void BeginRender(size_t bufferWidth, size_t bufferHeight);
 
@@ -26,12 +22,11 @@ namespace render {
 
 		std::vector<Eigen::Vector3f>& GetFramebuffer();
 
-		void AddPointLight(Eigen::Vector3f pos, Eigen::Vector3f intensity, float radius);
-		void AddDirectionLight(Eigen::Vector3f pos, Eigen::Vector3f intensity, Eigen::Vector3f direction, float width, float height, float znear, float zfar);
 
 		void AddClipPlane(ClipPlane plane);
 
 		void ClipOn(bool clip);
 		void ZTestOn(bool ztest);
+		void PerspectiveCorrectOn(bool correct);
 	};
 }

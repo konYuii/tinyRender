@@ -22,7 +22,7 @@ namespace render {
 		}
 
 	}
-	Eigen::Vector3f SkyBox::PS()
+	Eigen::Vector3f SkyBox::PS(int x,int y)
 	{
 		Eigen::Vector3f res;
 		Eigen::Vector3f dir = (pixelIn.WS_Pos - uniform.cameraPos).normalized();
